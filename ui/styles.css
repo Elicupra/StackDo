@@ -1,0 +1,5 @@
+/* ui/styles.css */
+.completed {
+    text-decoration: line-through;
+    color: #777;
+}
