@@ -1,6 +1,6 @@
 # api/crud.py
 from .db import get_conn
-from .models import TaskCreate, TaskUpdate, TaskOut
+from .models import TaskCreate, TaskUpdate, TaskOut, ProjectCreate, ProjectOut
 from typing import List
 import sqlite3
 
@@ -20,14 +20,15 @@ def create_task(t: TaskCreate) -> int:
     with get_conn() as conn:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO tareas (titulo,descripcion,estado,prioridad,fecha_vencimiento,Active)
-            VALUES (?, ?, ?, ?, ?, 1);
+            INSERT INTO tareas (titulo,descripcion,estado,prioridad,fecha_vencimiento,Active, project_id)
+            VALUES (?, ?, ?, ?, ?, 1, ?);
         """, (
             t.titulo,
             t.descripcion,
             t.estado,
             t.prioridad,
-            t.fecha_vencimiento
+            t.fecha_vencimiento,
+            t.project_id
         ))
         conn.commit()
         return cur.lastrowid
@@ -40,8 +41,11 @@ def get_task(id: int) -> TaskOut | None:
         return None
     return TaskOut(**dict(row))
 
-def list_active_tasks() -> List[TaskOut]:
-    rows = _execute("SELECT * FROM tareas WHERE Active = 1")
+def list_active_tasks(project_id: int | None = None) -> List[TaskOut]:
+    if project_id:
+        rows = _execute("SELECT * FROM tareas WHERE Active = 1 AND project_id = ?", (project_id,))
+    else:
+        rows = _execute("SELECT * FROM tareas WHERE Active = 1")
     return [TaskOut(**dict(r)) for r in rows]
 
 def soft_delete(id: int) -> bool:
@@ -76,3 +80,24 @@ def update_task(id: int, t: TaskUpdate) -> bool:
         cur.execute(query, tuple(values))
         conn.commit()
         return cur.rowcount == 1
+
+
+# ---------------- Projects CRUD ----------------
+def create_project(p: ProjectCreate) -> int:
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("INSERT INTO projects (name, description) VALUES (?, ?)", (p.name, p.description))
+        conn.commit()
+        return cur.lastrowid
+
+
+def list_projects() -> List[ProjectOut]:
+    rows = _execute("SELECT * FROM projects")
+    return [ProjectOut(**dict(r)) for r in rows]
+
+
+def get_project(id: int) -> ProjectOut | None:
+    row = _execute("SELECT * FROM projects WHERE id = ?", (id,), fetchone=True)
+    if not row:
+        return None
+    return ProjectOut(**dict(row))

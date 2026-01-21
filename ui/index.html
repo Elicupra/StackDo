@@ -18,31 +18,74 @@
 
 <div class="container py-4">
 
-    <!-- ========   1. Formulario de nueva tarea   ======== -->
-    <form id="taskForm" class="row g-3 mb-4">
-        <div class="col-md-6"><input id="title" class="form-control"
-            placeholder="Título" required></div>
-        <div class="col-md-6"><input id="desc" class="form-control"
-            placeholder="Descripción"></div>
-
-        <div class="col-md-3">
-            <select id="status" class="form-select">
-                <option value="pendiente">Pendiente</option>
-                <option value="en_progreso">En progreso</option>
-                <option value="completada">Completada</option>
-            </select>
+        <!-- ========   1. Panel de Proyectos y acciones   ======== -->
+        <div class="d-flex align-items-center gap-2 mb-3">
+                <div>
+                        <select id="projectSelect" class="form-select"></select>
+                </div>
+                <div>
+                        <button id="createProjectBtn" class="btn btn-outline-secondary">Crear proyecto</button>
+                </div>
+                <div class="ms-auto">
+                        <button id="openCreateBtn" class="btn btn-primary">Crear tarea</button>
+                </div>
         </div>
 
-        <div class="col-md-3"><input id="prio" type="number"
-            class="form-control" placeholder="Prioridad (1‑5)" min="1" max="5"></div>
-
-        <div class="col-md-3">
-            <input id="due" type="date" class="form-control"/>
+        <!-- Modal: Crear / Editar Tarea -->
+        <div class="modal fade" id="taskModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="taskModalLabel">Crear tarea</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="taskForm" class="row g-3">
+                                <div class="col-12"><input id="title" class="form-control" placeholder="Título" required></div>
+                                <div class="col-12"><input id="desc" class="form-control" placeholder="Descripción"></div>
+                                <div class="col-md-6">
+                                        <select id="status" class="form-select">
+                                                <option value="pendiente">Pendiente</option>
+                                                <option value="en_progreso">En progreso</option>
+                                                <option value="completada">Completada</option>
+                                        </select>
+                                </div>
+                                <div class="col-md-6"><input id="prio" type="number" class="form-control" placeholder="Prioridad (1‑5)" min="1" max="5"></div>
+                                <div class="col-md-6"><input id="due" type="date" class="form-control"/></div>
+                                <div class="col-md-6">
+                                        <select id="taskProjectSelect" class="form-select">
+                                                <option value="">Sin proyecto</option>
+                                        </select>
+                                </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button id="taskSaveBtn" type="button" class="btn btn-primary">Guardar</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="col-md-3"><button type="submit"
-                class="btn btn-primary w-100">Añadir</button></div>
-    </form>
+        <!-- Modal: Detalle de tarea -->
+        <div class="modal fade" id="taskDetailModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="taskDetailLabel">Tarea</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body" id="taskDetailBody">
+                        <!-- contenido dinámico -->
+                    </div>
+                    <div class="modal-footer">
+                        <button id="detailEditBtn" type="button" class="btn btn-outline-primary">Editar</button>
+                        <button id="detailCompleteBtn" type="button" class="btn btn-success">Completar</button>
+                        <button id="detailDeleteBtn" type="button" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     <!-- ========   2. Tabla de tareas   ======== -->
     <table class="table table-hover">

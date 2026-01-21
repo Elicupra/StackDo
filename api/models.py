@@ -12,7 +12,7 @@ class TaskBase(BaseModel):
     fecha_vencimiento: Optional[date] = None
 
 class TaskCreate(TaskBase):
-    pass
+    project_id: int | None = None
 
 class TaskUpdate(BaseModel):
     titulo: Optional[str] = None
@@ -20,7 +20,20 @@ class TaskUpdate(BaseModel):
     estado: Optional[str] = None
     prioridad: Optional[int] = None
     fecha_vencimiento: Optional[date] = None
+    project_id: Optional[int] = None
 
 class TaskOut(TaskBase):
     id: int
     Active: int  # 1 = activo, 0 = inactivo
+    project_id: int | None = None
+
+
+class ProjectCreate(BaseModel):
+    name: str = Field(..., max_length=200)
+    description: Optional[str] = None
+
+
+class ProjectOut(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None

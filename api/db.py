@@ -32,4 +32,22 @@ def init_db() -> None:
                 Active INTEGER DEFAULT 1
             );
         """)
+        # Crear tabla de proyectos si no existe
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT
+            );
+        """)
+
+        # Añadir columna project_id a tareas si no existe (SQLite: comprobamos PRAGMA)
+        cursor.execute("PRAGMA table_info(tareas);")
+        cols = [r[1] for r in cursor.fetchall()]
+        if 'project_id' not in cols:
+            try:
+                cursor.execute("ALTER TABLE tareas ADD COLUMN project_id INTEGER;")
+            except Exception:
+                # Si falla, ignoramos (por ejemplo en versiones antiguas o si ya existe)
+                pass
         conn.commit()
