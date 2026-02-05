@@ -1,35 +1,68 @@
-# api/db.py
-import sqlite3
+import os
+import dotenv
 from contextlib import contextmanager
-from typing import Generator
+from typing import Generator, Optional
+from datetime import date
+from urllib.parse import quote_plus
+from sqlmodel import SQLModel, Field, create_engine, Session, select
 
-DB_FILE = "todo.db"
+# CARGA DE VARIABLES DE ENTORNO
+file_env = os.path.join(os.path.dirname(__file__), os.path.pardir, '.env')
+dotenv.load_dotenv(file_env)
+
+# VARIABLES PARA BASES DE DATOS POSTGRES
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+DB_SCHEMA = os.getenv("DB_SCHEMA")
+
+# URL DE LA BASE DE DATOS POSTGRES
+# quote_plus para escapar caracteres especiales en usuario y contraseña
+DB_URL = f"postgresql+psycopg2://{quote_plus(DB_USER)}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+# Crear el engine
+# echo=True para ver las queries en consola (útil en dev)
+engine = create_engine(DB_URL, echo=False)
+
+# ----------------- MODELOS SQLMODEL -----------------
+
+class Project(SQLModel, table=True):
+    __tablename__ = "projects"
+    # Si se usa un esquema específico en Postgres:
+    if DB_SCHEMA:
+        __table_args__ = {"schema": DB_SCHEMA}
+        
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(unique=True, max_length=200)
+    description: Optional[str] = None
+
+class Tarea(SQLModel, table=True):
+    __tablename__ = "tareas"
+    if DB_SCHEMA:
+        __table_args__ = {"schema": DB_SCHEMA}
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    titulo: str = Field(max_length=200)
+    descripcion: Optional[str] = Field(default=None, max_length=255)
+    estado: str = Field(max_length=50)
+    prioridad: int
+    fecha_vencimiento: Optional[date] = None
+    active: bool = Field(default=True)
+    project_id: Optional[int] = Field(default=None, foreign_key="projects.id")
+
+
+# ----------------- CONEXIÓN -----------------
 
 @contextmanager
-def get_conn() -> Generator[sqlite3.Connection, None, None]:
-    """Context manager que devuelve una conexión y la cierra al salir del bloque `with`.
-    Se puede usar como: ``with get_conn() as conn:``
-    """
-    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
-    conn.row_factory = sqlite3.Row   # permite acceder por nombre
-    try:
-        yield conn
-    finally:
-        conn.close()
+def get_session() -> Generator[Session, None, None]:
+    """Context manager para obtener una sesión de DB."""
+    with Session(engine) as session:
+        yield session
 
-def init_db() -> None:
-    """Crea la tabla si no existe."""
-    with get_conn() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tareas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                titulo TEXT NOT NULL,
-                descripcion TEXT,
-                estado TEXT NOT NULL,
-                prioridad INTEGER NOT NULL,
-                fecha_vencimiento DATE,
-                Active INTEGER DEFAULT 1
-            );
-        """)
-        conn.commit()
+def init_db():
+    """Crea las tablas en la base de datos PostgreSQL."""
+    # Si usas esquemas, a veces necesitas crearlos manualmente o asegurar que existan
+    # SQLModel.metadata.create_all creará las tablas.
+    SQLModel.metadata.create_all(engine)
