@@ -251,6 +251,37 @@ a {
     transition: all 0.2s ease;
 }
 
+/* ==================== FOOTER ==================== */
+.app-footer {
+    background-color: #0b2a4a;
+    color: #e9ecef;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-footer h6 {
+    letter-spacing: 0.5px;
+}
+
+.footer-link {
+    color: #cfe2ff;
+    text-decoration: none;
+}
+
+.footer-link:hover {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+.footer-social .footer-icon {
+    color: #cfe2ff;
+    font-size: 1.25rem;
+}
+
+.footer-social .footer-icon:hover {
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
 /* ==================== ANIMACIONES ====================  */
 @keyframes slideInUp {
     from {
