@@ -22,6 +22,12 @@ app = FastAPI(
     version="1.0.0",
 )
 
+from .db import init_db
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
 # Montamos la carpeta `ui` en /static y añadimos una ruta / que redirige allí.
 app.mount("/static", StaticFiles(directory="ui", html=True), name="static")
 

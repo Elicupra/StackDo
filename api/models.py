@@ -24,7 +24,7 @@ class TaskUpdate(BaseModel):
 
 class TaskOut(TaskBase):
     id: int
-    Active: int  # 1 = activo, 0 = inactivo
+    active: bool
     project_id: int | None = None
 
 
