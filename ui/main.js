@@ -64,19 +64,31 @@ async function loadProjects() {
         const projectList = document.getElementById('projectListContainer');
         projectList.innerHTML = '';
         
-        projects.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.name;
-            sel.appendChild(opt);
+        const noProjectsMsg = document.getElementById('noProjectsMessage');
+        
+        if (projects.length === 0) {
+            // No hay proyectos, mostrar mensaje
+            noProjectsMsg.classList.remove('d-none');
+            projectList.classList.add('d-none');
+        } else {
+            // Hay proyectos, mostrar lista
+            noProjectsMsg.classList.add('d-none');
+            projectList.classList.remove('d-none');
             
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'list-group-item list-group-item-action project-option';
-            btn.dataset.projectId = p.id;
-            btn.textContent = p.name;
-            projectList.appendChild(btn);
-        });
+            projects.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name;
+                sel.appendChild(opt);
+                
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'list-group-item list-group-item-action project-option';
+                btn.dataset.projectId = p.id;
+                btn.textContent = p.name;
+                projectList.appendChild(btn);
+            });
+        }
         
         const taskProjectSel = document.getElementById('taskProjectSelect');
         taskProjectSel.innerHTML = '<option value="">Sin proyecto</option>';
@@ -92,6 +104,10 @@ async function loadProjects() {
             if (currentProject) {
                 document.getElementById('currentProjectName').textContent = currentProject.name;
                 document.getElementById('projectSelect').value = currentProjectId;
+            } else {
+                // Proyecto guardado ya no existe, limpiar
+                currentProjectId = null;
+                localStorage.removeItem('currentProjectId');
             }
         }
     } catch (e) {
@@ -598,6 +614,8 @@ document.getElementById('projectFormBtn').addEventListener('click', async () => 
             throw new Error(error.detail || 'Error al crear proyecto');
         }
         
+        const newProject = await res.json();
+        
         showToast('Proyecto creado', 'success');
         document.getElementById('projectName').value = '';
         document.getElementById('projectDesc').value = '';
@@ -606,12 +624,30 @@ document.getElementById('projectFormBtn').addEventListener('click', async () => 
         modal.hide();
         
         await loadProjects();
+        
+        // Si venimos del modal de selección inicial, auto-seleccionar el nuevo proyecto
+        const selectionModal = bootstrap.Modal.getInstance(document.getElementById('projectSelectionModal'));
+        if (selectionModal) {
+            currentProjectId = newProject.id;
+            localStorage.setItem('currentProjectId', currentProjectId);
+            document.getElementById('currentProjectName').textContent = newProject.name;
+            selectionModal.hide();
+            loadTasks();
+        }
     } catch (e) {
         showToast(e.message, 'danger');
     }
 });
 
 document.getElementById('createProjectBtn').addEventListener('click', () => {
+    document.getElementById('projectName').value = '';
+    document.getElementById('projectDesc').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('projectModal'));
+    modal.show();
+});
+
+// Botón para crear proyecto desde modal de selección inicial
+document.getElementById('createProjectFromSelection').addEventListener('click', () => {
     document.getElementById('projectName').value = '';
     document.getElementById('projectDesc').value = '';
     const modal = new bootstrap.Modal(document.getElementById('projectModal'));

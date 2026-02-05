@@ -3,6 +3,7 @@ import dotenv
 from contextlib import contextmanager
 from typing import Generator, Optional
 from datetime import date
+from urllib.parse import quote_plus
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 
 # CARGA DE VARIABLES DE ENTORNO
@@ -15,11 +16,11 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 DB_NAME = os.getenv("DB_NAME")
-DB_SCHEMA = os.getenv("DB_SCHEMA") # Start with "public" if None usually, or handle None.
+DB_SCHEMA = os.getenv("DB_SCHEMA")
 
 # URL DE LA BASE DE DATOS POSTGRES
-# Se recomienda usar el driver psycopg2 (postgresql+psycopg2://...)
-DB_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# quote_plus para escapar caracteres especiales en usuario y contraseña
+DB_URL = f"postgresql+psycopg2://{quote_plus(DB_USER)}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Crear el engine
 # echo=True para ver las queries en consola (útil en dev)

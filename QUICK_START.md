@@ -16,6 +16,9 @@ cp .env.example .env
 # DB_PORT=5432
 # DB_NAME=stackdo
 # DB_SCHEMA=public
+
+# NOTA: Si tu contraseña contiene caracteres especiales (@, :, /, etc.)
+# no te preocupes, el código los maneja automáticamente con URL encoding
 ```
 
 ### **Paso 2: Crear entorno virtual e instalar dependencias**
@@ -28,7 +31,11 @@ pip install fastapi uvicorn sqlmodel python-dotenv psycopg2-binary
 
 ### **Paso 3: Inicializar base de datos**
 ```powershell
-python -c "from api.db import init_db; init_db(); print('✅ BD inicializada')"
+# Opción 1: Usando el script
+python scripts/init_db.py
+
+# Opción 2: Comando directo (sin emoji)
+python -c "from api.db import init_db; init_db(); print('BD inicializada correctamente')"
 ```
 
 ### **Paso 4: Ejecutar servidor**
@@ -100,7 +107,7 @@ Si una tarea **NO tiene proyecto asignado**:
 
 | Problema | Solución |
 |----------|----------|
-| **Error BD**: "No such table" | Ejecutar: `python -c "from api.db import init_db; init_db()"` |
+| **Error BD**: "No such table" | Ejecutar: `python scripts/init_db.py` |
 | **Error conexión**: "psycopg2" | Instalar: `pip install psycopg2-binary` |
 | **Port 8000 ocupado** | Cambiar: `uvicorn api.main:app --port 8001` |
 | **No carga proyectos** | Verificar `.env` con credenciales PostgreSQL |
