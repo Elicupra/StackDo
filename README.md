@@ -22,7 +22,7 @@ Sistema MVP de gestión de tareas por proyectos, construido con **FastAPI** (bac
 
 ```bash
 git clone <url-repo>
-cd python
+cd StackDo
 ```
 
 ### 2. **Configurar variables de entorno**
