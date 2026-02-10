@@ -29,9 +29,13 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <span class="navbar-text ms-auto text-white me-3">
-                <strong>Proyecto:</strong> <span id="currentProjectName">Cargando...</span>
-            </span>
+            <div class="navbar-text ms-auto d-flex align-items-center gap-2">
+                <span class="text-white-50 small">Proyecto activo</span>
+                <span id="currentProjectName" class="badge bg-light text-primary project-pill">Cargando...</span>
+                <button id="openProjectPickerBtn" type="button" class="btn btn-sm btn-outline-light">
+                    Cambiar
+                </button>
+            </div>
         </div>
     </div>
 </nav>
@@ -45,6 +49,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="fas fa-project-diagram"></i> Selecciona un Proyecto</h5>
+                    <button id="projectSelectionCloseBtn" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
                     <div class="list-group" id="projectListContainer">
@@ -77,14 +82,41 @@
 
         <!-- Crear Proyecto -->
         <div class="col-auto">
-            <button id="createProjectBtn" class="btn btn-outline-secondary">
+            <button id="createProjectBtn" class="btn btn-outline-primary btn-cta">
                 <i class="fas fa-plus"></i> Nuevo Proyecto
             </button>
         </div>
 
+        <div class="col-auto">
+            <button id="openUserModalBtn" class="btn btn-outline-primary btn-cta" data-bs-toggle="modal" data-bs-target="#userModal">
+                <i class="fas fa-user-plus"></i> Nuevo Usuario
+            </button>
+        </div>
+
+        <!-- Exportar -->
+        <div class="col-auto">
+            <div class="dropdown">
+                <button class="btn btn-outline-primary btn-cta dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-file-export"></i> Exportar
+                </button>
+                <ul class="dropdown-menu">
+                    <li>
+                        <button id="exportJsonBtn" class="dropdown-item" type="button">
+                            <i class="fas fa-clipboard"></i> JSON (portapapeles)
+                        </button>
+                    </li>
+                    <li>
+                        <button id="exportCsvBtn" class="dropdown-item" type="button">
+                            <i class="fas fa-file-csv"></i> CSV (descargar)
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
         <!-- Crear Tarea -->
         <div class="col-auto ms-auto">
-            <button id="openCreateBtn" class="btn btn-primary">
+            <button id="openCreateBtn" class="btn btn-primary btn-cta btn-cta-primary">
                 <i class="fas fa-plus"></i> Nueva Tarea
             </button>
         </div>
@@ -96,7 +128,7 @@
             <div class="row g-2 align-items-end">
                 
                 <!-- Búsqueda por nombre -->
-                <div class="col-12 col-md-4">
+                <div id="searchFieldContainer" class="col-12 col-md-4 d-none">
                     <label class="form-label small fw-bold">Buscar</label>
                     <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Nombre o descripción...">
                 </div>
@@ -137,12 +169,39 @@
                 </div>
 
                 <!-- Reset -->
-                <div class="col-auto ms-auto">
+                <div class="col-auto ms-auto d-flex gap-2">
+                    <button id="toggleSearchBtn" class="btn btn-sm btn-outline-primary btn-cta" type="button">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
                     <button id="resetFiltersBtn" class="btn btn-sm btn-outline-secondary">
                         <i class="fas fa-redo"></i> Reset
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ========== ESTADISTICAS ====================  -->
+    <div class="stats-bar mb-3">
+        <div class="stat-pill stat-total">
+            <span class="stat-label">Total</span>
+            <span id="statTotal" class="stat-value">0</span>
+        </div>
+        <div class="stat-pill stat-pending">
+            <span class="stat-label">Pendientes</span>
+            <span id="statPending" class="stat-value">0</span>
+        </div>
+        <div class="stat-pill stat-progress">
+            <span class="stat-label">En progreso</span>
+            <span id="statProgress" class="stat-value">0</span>
+        </div>
+        <div class="stat-pill stat-completed">
+            <span class="stat-label">Completadas</span>
+            <span id="statCompleted" class="stat-value">0</span>
+        </div>
+        <div class="stat-pill stat-overdue">
+            <span class="stat-label">Vencidas</span>
+            <span id="statOverdue" class="stat-value">0</span>
         </div>
     </div>
 
@@ -229,6 +288,13 @@
                                 <option value="">Seleccionar proyecto...</option>
                             </select>
                         </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Asignar a <span class="text-danger">*</span></label>
+                            <select id="taskUserSelect" class="form-select" required>
+                                <option value="">Seleccionar usuario...</option>
+                            </select>
+                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -260,6 +326,62 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                     <button id="projectFormBtn" type="button" class="btn btn-primary">Crear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL: Crear Usuario ====================  -->
+    <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-plus"></i> Crear Usuario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="userForm" class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">ID Usuario <span class="text-danger">*</span></label>
+                            <input id="userId" type="text" class="form-control" maxlength="255" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                            <input id="userName" type="text" class="form-control" maxlength="255" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Primer apellido <span class="text-danger">*</span></label>
+                            <input id="userLastName" type="text" class="form-control" maxlength="255" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Segundo apellido</label>
+                            <input id="userSecondLastName" type="text" class="form-control" maxlength="255">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Sexo</label>
+                            <select id="userGender" class="form-select">
+                                <option value="">Seleccionar...</option>
+                                <option value="H">H</option>
+                                <option value="M">M</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Edad</label>
+                            <input id="userAge" type="number" class="form-control" min="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Rol</label>
+                            <input id="userRole" type="text" class="form-control" maxlength="255">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Correo electronico</label>
+                            <input id="userEmail" type="email" class="form-control" maxlength="255">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button id="userSaveBtn" type="button" class="btn btn-primary">Guardar</button>
                 </div>
             </div>
         </div>

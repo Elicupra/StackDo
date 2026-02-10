@@ -29,6 +29,12 @@ body {
     margin-right: 0.5rem;
 }
 
+.project-pill {
+    font-weight: 600;
+    padding: 0.45rem 0.7rem;
+    border-radius: 999px;
+}
+
 /* ==================== TABLA DE TAREAS ====================  */
 .table {
     background-color: white;
@@ -132,6 +138,15 @@ body {
     border-color: #0056b3;
 }
 
+.btn-cta {
+    box-shadow: 0 6px 16px rgba(0, 123, 255, 0.18);
+    border-width: 2px;
+}
+
+.btn-cta-primary {
+    box-shadow: 0 10px 22px rgba(0, 123, 255, 0.28);
+}
+
 .btn-outline-secondary {
     color: #6c757d;
     border-color: #6c757d;
@@ -199,6 +214,54 @@ body {
 
 .card-body {
     padding: 1.25rem;
+}
+
+/* ==================== ESTADISTICAS ====================  */
+.stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+}
+
+.stat-pill {
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 999px;
+    padding: 0.5rem 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.stat-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.stat-pending .stat-value {
+    color: #b08900;
+}
+
+.stat-progress .stat-value {
+    color: #0b5ed7;
+}
+
+.stat-completed .stat-value {
+    color: #146c43;
+}
+
+.stat-overdue .stat-value {
+    color: #b02a37;
 }
 
 /* ==================== SOPORTE RESPONSIVO ====================  */

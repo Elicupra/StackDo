@@ -1,6 +1,7 @@
 // ui/main.js
 const API = "/tasks";
 const API_PROJECTS = "/projects";
+const API_USERS = "/users";
 
 // Estado global
 let currentViewMode = localStorage.getItem('viewMode') || 'table';
@@ -13,25 +14,35 @@ let currentFilters = {
     dateTo: ''
 };
 let allTasks = [];
+let lastFilteredTasks = [];
 let filterTimeout;
+let isSearchVisible = false;
 
 // ==================== INICIALIZACIÓN ====================
 
 async function initApp() {
-    await loadProjects();
-    if (!currentProjectId) {
-        showProjectSelectionModal();
-    } else {
-        loadTasks();
+    await loadUsers();
+    const hasCurrentProject = await loadProjects();
+    if (!hasCurrentProject) {
+        showProjectSelectionModal(true);
+        return;
     }
+    loadTasks();
 }
 
 // ==================== MODAL DE SELECCIÓN DE PROYECTO ====================
 
-function showProjectSelectionModal() {
-    const modal = new bootstrap.Modal(document.getElementById('projectSelectionModal'), {
-        backdrop: 'static',
-        keyboard: false
+function showProjectSelectionModal(forceSelect = false) {
+    const modalEl = document.getElementById('projectSelectionModal');
+    const closeBtn = document.getElementById('projectSelectionCloseBtn');
+    if (forceSelect) {
+        closeBtn.classList.add('d-none');
+    } else {
+        closeBtn.classList.remove('d-none');
+    }
+    const modal = new bootstrap.Modal(modalEl, {
+        backdrop: forceSelect ? 'static' : true,
+        keyboard: !forceSelect
     });
     modal.show();
 }
@@ -99,20 +110,62 @@ async function loadProjects() {
             taskProjectSel.appendChild(opt);
         });
         
+        let hasCurrentProject = false;
         if (currentProjectId) {
             const currentProject = projects.find(p => p.id == currentProjectId);
             if (currentProject) {
                 document.getElementById('currentProjectName').textContent = currentProject.name;
                 document.getElementById('projectSelect').value = currentProjectId;
+                hasCurrentProject = true;
             } else {
                 // Proyecto guardado ya no existe, limpiar
                 currentProjectId = null;
                 localStorage.removeItem('currentProjectId');
             }
         }
+        if (!hasCurrentProject) {
+            document.getElementById('currentProjectName').textContent = 'Sin proyecto';
+        }
+
+        return hasCurrentProject;
     } catch (e) {
         console.error('Error cargando proyectos:', e);
         showToast('Error al cargar proyectos', 'danger');
+        return false;
+    }
+}
+
+// ==================== CARGAR USUARIOS ====================
+
+async function loadUsers() {
+    try {
+        const res = await fetch(API_USERS);
+        if (!res.ok) throw new Error('No se pudieron cargar usuarios');
+        const users = await res.json();
+
+        const userSelect = document.getElementById('taskUserSelect');
+        userSelect.innerHTML = '<option value="">Seleccionar usuario...</option>';
+        if (!users.length) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'No hay usuarios disponibles';
+            opt.disabled = true;
+            userSelect.appendChild(opt);
+            return false;
+        }
+
+        users.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            const label = `${u.nombre} ${u.primer_apellido}`.trim();
+            opt.textContent = u.id_usuario ? `${label} (${u.id_usuario})` : label;
+            userSelect.appendChild(opt);
+        });
+        return true;
+    } catch (e) {
+        console.error('Error cargando usuarios:', e);
+        showToast('Error al cargar usuarios', 'danger');
+        return false;
     }
 }
 
@@ -172,6 +225,8 @@ function applyFilters() {
         return dateA - dateB;
     });
     
+    lastFilteredTasks = filtered;
+    updateStats(filtered);
     document.getElementById('taskCount').textContent = `${filtered.length} tareas`;
     
     if (currentViewMode === 'table') {
@@ -179,6 +234,26 @@ function applyFilters() {
     } else {
         renderCards(filtered);
     }
+}
+
+function updateStats(tasks) {
+    const total = tasks.length;
+    const pending = tasks.filter(t => t.estado === 'pendiente').length;
+    const inProgress = tasks.filter(t => t.estado === 'en_progreso').length;
+    const completed = tasks.filter(t => t.estado === 'completada').length;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overdue = tasks.filter(t => {
+        if (!t.fecha_vencimiento || t.estado === 'completada') return false;
+        const dueDate = new Date(t.fecha_vencimiento + 'T00:00:00');
+        return dueDate < today;
+    }).length;
+
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statPending').textContent = pending;
+    document.getElementById('statProgress').textContent = inProgress;
+    document.getElementById('statCompleted').textContent = completed;
+    document.getElementById('statOverdue').textContent = overdue;
 }
 
 // ==================== RENDERIZADO - TABLA ====================
@@ -357,6 +432,22 @@ document.getElementById('filterDateTo').addEventListener('change', (e) => {
     applyFilters();
 });
 
+document.getElementById('toggleSearchBtn').addEventListener('click', () => {
+    isSearchVisible = !isSearchVisible;
+    const container = document.getElementById('searchFieldContainer');
+    container.classList.toggle('d-none', !isSearchVisible);
+    document.getElementById('toggleSearchBtn').classList.toggle('active', isSearchVisible);
+    if (isSearchVisible) {
+        document.getElementById('searchInput').focus();
+        return;
+    }
+    if (currentFilters.search) {
+        currentFilters.search = '';
+        document.getElementById('searchInput').value = '';
+        applyFilters();
+    }
+});
+
 document.getElementById('resetFiltersBtn').addEventListener('click', () => {
     resetFilters();
 });
@@ -379,6 +470,92 @@ function resetFilters() {
     applyFilters();
 }
 
+// ==================== EXPORTAR ====================
+
+document.getElementById('exportJsonBtn').addEventListener('click', async () => {
+    if (!lastFilteredTasks.length) {
+        showToast('No hay tareas para exportar', 'warning');
+        return;
+    }
+    const payload = JSON.stringify(lastFilteredTasks, null, 2);
+    try {
+        await copyToClipboard(payload);
+        showToast('JSON copiado al portapapeles', 'success');
+    } catch (e) {
+        showToast('No se pudo copiar el JSON', 'danger');
+    }
+});
+
+document.getElementById('exportCsvBtn').addEventListener('click', () => {
+    if (!lastFilteredTasks.length) {
+        showToast('No hay tareas para exportar', 'warning');
+        return;
+    }
+    const csv = buildCsv(lastFilteredTasks);
+    const fileName = `stackdo_tareas_${getTodayStamp()}.csv`;
+    downloadFile(csv, fileName, 'text/csv;charset=utf-8');
+    showToast('CSV generado', 'success');
+});
+
+async function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+    const temp = document.createElement('textarea');
+    temp.value = text;
+    temp.style.position = 'fixed';
+    temp.style.opacity = '0';
+    document.body.appendChild(temp);
+    temp.focus();
+    temp.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(temp);
+    if (!ok) throw new Error('Clipboard no disponible');
+}
+
+function buildCsv(tasks) {
+    const headers = [
+        'id',
+        'titulo',
+        'descripcion',
+        'estado',
+        'prioridad',
+        'fecha_vencimiento',
+        'fecha_creacion',
+        'active',
+        'project_id'
+    ];
+    const rows = tasks.map(t => headers.map(h => csvEscape(t[h])));
+    return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+}
+
+function csvEscape(value) {
+    if (value === null || value === undefined) return '';
+    const text = String(value).replace(/\r?\n/g, ' ').replace(/"/g, '""');
+    return /[",]/.test(text) ? `"${text}"` : text;
+}
+
+function downloadFile(content, fileName, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function getTodayStamp() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}${month}${day}`;
+}
+
 // ==================== CAMBIAR PROYECTO ====================
 
 document.getElementById('projectSelect').addEventListener('change', (e) => {
@@ -391,14 +568,20 @@ document.getElementById('projectSelect').addEventListener('change', (e) => {
         
         resetFilters();
         loadTasks();
-        
-        e.target.value = '';
     }
+});
+
+document.getElementById('openProjectPickerBtn').addEventListener('click', () => {
+    showProjectSelectionModal(false);
 });
 
 // ==================== CREAR TAREA ====================
 
 document.getElementById('openCreateBtn').addEventListener('click', () => {
+    const userSelect = document.getElementById('taskUserSelect');
+    if (userSelect.options.length <= 1) {
+        showToast('No hay usuarios disponibles. Crea uno primero.', 'warning');
+    }
     resetTaskForm();
     document.getElementById('taskModalLabel').textContent = 'Crear tarea';
     document.getElementById('taskSaveBtn').textContent = 'Guardar';
@@ -423,13 +606,20 @@ document.getElementById('taskSaveBtn').addEventListener('click', async () => {
         return;
     }
     
+    const userId = document.getElementById('taskUserSelect').value;
+    if (!userId) {
+        showToast('Debes seleccionar un usuario', 'warning');
+        return;
+    }
+
     const payload = {
         titulo: document.getElementById('title').value.trim(),
         descripcion: document.getElementById('desc').value.trim() || null,
         estado: document.getElementById('status').value,
         prioridad: parseInt(document.getElementById('prio').value) || 1,
         fecha_vencimiento: document.getElementById('due').value || null,
-        project_id: parseInt(projectId)
+        project_id: parseInt(projectId),
+        user_id: parseInt(userId)
     };
     
     const method = editId ? 'PUT' : 'POST';
@@ -473,6 +663,7 @@ async function editTask(id) {
         document.getElementById('prio').value = t.prioridad || 1;
         document.getElementById('due').value = t.fecha_vencimiento?.slice(0, 10) || '';
         document.getElementById('taskProjectSelect').value = t.project_id || '';
+        document.getElementById('taskUserSelect').value = t.user_id || '';
         
         editId = id;
         document.getElementById('taskModalLabel').textContent = 'Editar tarea';
@@ -646,6 +837,61 @@ document.getElementById('createProjectBtn').addEventListener('click', () => {
     modal.show();
 });
 
+// ==================== CREAR USUARIO ====================
+
+document.getElementById('openUserModalBtn').addEventListener('click', () => {
+    document.getElementById('userForm').reset();
+    const modal = new bootstrap.Modal(document.getElementById('userModal'));
+    modal.show();
+});
+
+document.getElementById('userSaveBtn').addEventListener('click', async () => {
+    const idUsuario = document.getElementById('userId').value.trim();
+    const nombre = document.getElementById('userName').value.trim();
+    const primerApellido = document.getElementById('userLastName').value.trim();
+    const segundoApellido = document.getElementById('userSecondLastName').value.trim() || null;
+    const sexo = document.getElementById('userGender').value || null;
+    const edadValue = document.getElementById('userAge').value;
+    const rol = document.getElementById('userRole').value.trim() || null;
+    const correo = document.getElementById('userEmail').value.trim() || null;
+
+    if (!idUsuario || !nombre || !primerApellido) {
+        showToast('Completa los campos obligatorios', 'warning');
+        return;
+    }
+
+    const payload = {
+        id_usuario: idUsuario,
+        nombre,
+        primer_apellido: primerApellido,
+        segundo_apellido: segundoApellido,
+        sexo,
+        edad: edadValue ? parseInt(edadValue) : null,
+        correo_electronico: correo,
+        rol
+    };
+
+    try {
+        const res = await fetch(API_USERS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.detail || 'Error al crear usuario');
+        }
+
+        showToast('Usuario creado', 'success');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
+        modal.hide();
+        await loadUsers();
+    } catch (e) {
+        showToast(e.message, 'danger');
+    }
+});
+
 // Botón para crear proyecto desde modal de selección inicial
 document.getElementById('createProjectFromSelection').addEventListener('click', () => {
     document.getElementById('projectName').value = '';
@@ -665,3 +911,14 @@ window.addEventListener('load', () => {
         document.getElementById('viewCardsBtn').classList.add('active');
     }
 });
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        buildCsv,
+        copyToClipboard,
+        csvEscape,
+        getTodayStamp,
+        loadProjects,
+        updateStats
+    };
+}

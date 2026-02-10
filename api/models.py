@@ -13,6 +13,7 @@ class TaskBase(BaseModel):
 
 class TaskCreate(TaskBase):
     project_id: int | None = None
+    user_id: int | None = None
 
 class TaskUpdate(BaseModel):
     titulo: Optional[str] = None
@@ -21,11 +22,13 @@ class TaskUpdate(BaseModel):
     prioridad: Optional[int] = None
     fecha_vencimiento: Optional[date] = None
     project_id: Optional[int] = None
+    user_id: Optional[int] = None
 
 class TaskOut(TaskBase):
     id: int
     active: bool
     project_id: int | None = None
+    user_id: int | None = None
 
 
 class ProjectCreate(BaseModel):
@@ -37,3 +40,26 @@ class ProjectOut(BaseModel):
     id: int
     name: str
     description: Optional[str] = None
+
+
+class UserOut(BaseModel):
+    id: int
+    id_usuario: str
+    nombre: str
+    primer_apellido: str
+    segundo_apellido: Optional[str] = None
+    sexo: Optional[str] = None
+    edad: Optional[int] = None
+    correo_electronico: Optional[str] = None
+    rol: Optional[str] = None
+
+
+class UserCreate(BaseModel):
+    id_usuario: str = Field(..., max_length=255)
+    nombre: str = Field(..., max_length=255)
+    primer_apellido: str = Field(..., max_length=255)
+    segundo_apellido: Optional[str] = Field(default=None, max_length=255)
+    sexo: Optional[str] = Field(default=None, max_length=1)
+    edad: Optional[int] = None
+    correo_electronico: Optional[str] = Field(default=None, max_length=255)
+    rol: Optional[str] = Field(default=None, max_length=255)

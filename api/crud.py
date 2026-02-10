@@ -2,13 +2,13 @@
 from typing import List, Optional
 from sqlmodel import select
 from fastapi import HTTPException, status
-from .db import get_session, Tarea, Project
-from .models import TaskCreate, TaskUpdate, TaskOut, ProjectCreate, ProjectOut
+from .db import get_session, Tarea, Project, User
+from .models import TaskCreate, TaskUpdate, TaskOut, ProjectCreate, ProjectOut, UserOut, UserCreate
 
 # ── TASKS CRUD ---------------------------
 
 def create_task(t: TaskCreate) -> int:
-    """Crea una tarea y devuelve su ID. Valida que project_id exista."""
+    """Crea una tarea y devuelve su ID. Valida proyecto y usuario."""
     with get_session() as session:
         # Si hay project_id, verificar que el proyecto exista
         if t.project_id is not None:
@@ -18,9 +18,28 @@ def create_task(t: TaskCreate) -> int:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Proyecto no encontrado"
                 )
+
+        user_id = t.user_id
+        if user_id is None:
+            user = session.exec(select(User).order_by(User.id)).first()
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Usuario no encontrado"
+                )
+            user_id = user.id
+        else:
+            user = session.get(User, user_id)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Usuario no encontrado"
+                )
         
         # Convertimos el esquema Pydantic a Modelo SQLModel
-        db_task = Tarea.model_validate(t)
+        task_data = t.model_dump()
+        task_data["user_id"] = user_id
+        db_task = Tarea.model_validate(task_data)
         session.add(db_task)
         session.commit()
         session.refresh(db_task)
@@ -72,6 +91,14 @@ def update_task(id: int, t: TaskUpdate) -> bool:
         if not task_data:
             return False # Nada que actualizar
             
+        if "user_id" in task_data and task_data["user_id"] is not None:
+            user = session.get(User, task_data["user_id"])
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Usuario no encontrado"
+                )
+
         for key, value in task_data.items():
             setattr(db_task, key, value)
             
@@ -102,3 +129,19 @@ def get_project(id: int) -> ProjectOut | None:
         if not db_project:
             return None
         return ProjectOut(**db_project.model_dump())
+
+
+def list_users() -> List[UserOut]:
+    with get_session() as session:
+        statement = select(User).order_by(User.id)
+        results = session.exec(statement).all()
+        return [UserOut(**u.model_dump()) for u in results]
+
+
+def create_user(u: UserCreate) -> int:
+    with get_session() as session:
+        db_user = User.model_validate(u)
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+        return db_user.id
