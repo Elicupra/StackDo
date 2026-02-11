@@ -11,11 +11,12 @@ from sqlmodel import select
 from .db import get_session, User, UserProject
 
 ROLE_SUPERADMIN = "SuperAdmin"
+ROLE_ITADMIN = "ITAdmin"
 ROLE_ADMIN = "AdminProyecto"
 ROLE_COORD = "CoordinadorProyecto"
 ROLE_USER = "Usuario"
 
-VALID_ROLES = {ROLE_SUPERADMIN, ROLE_ADMIN, ROLE_COORD, ROLE_USER}
+VALID_ROLES = {ROLE_SUPERADMIN, ROLE_ITADMIN, ROLE_ADMIN, ROLE_COORD, ROLE_USER}
 
 AUTH_ENABLED = os.getenv("AUTH_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
 JWT_SECRET = os.getenv("JWT_SECRET", "change-me")
@@ -37,6 +38,8 @@ def normalize_role(role: Optional[str]) -> str:
         return ROLE_USER
     if legacy in {"superadmin", "super admin"}:
         return ROLE_SUPERADMIN
+    if legacy in {"itadmin", "it admin", "rol it", "it"}:
+        return ROLE_ITADMIN
     return ROLE_USER
 
 
@@ -138,6 +141,11 @@ def can_export(user: User) -> bool:
 def can_access_dashboard(user: User) -> bool:
     role = normalize_role(user.rol)
     return role in {ROLE_SUPERADMIN, ROLE_ADMIN, ROLE_COORD}
+
+
+def can_access_admin_console(user: User) -> bool:
+    role = normalize_role(user.rol)
+    return role in {ROLE_SUPERADMIN, ROLE_ITADMIN}
 
 
 def is_project_admin(user: User) -> bool:

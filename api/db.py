@@ -4,7 +4,7 @@ import hashlib
 import secrets
 from contextlib import contextmanager
 from typing import Generator, Optional
-from datetime import date
+from datetime import date, datetime
 from urllib.parse import quote_plus
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 from sqlalchemy import text, UniqueConstraint
@@ -106,6 +106,18 @@ class Tarea(SQLModel, table=True):
         default=None,
         foreign_key=f"{DB_SCHEMA}.projects.id" if DB_SCHEMA else "projects.id",
     )
+
+
+class AppLog(SQLModel, table=True):
+    __tablename__ = "app_logs"
+    if DB_SCHEMA:
+        __table_args__ = {"schema": DB_SCHEMA}
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    level: str = Field(max_length=20)
+    message: str = Field(max_length=1000)
+    context: Optional[str] = Field(default=None, max_length=2000)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 # ----------------- CONEXIÓN -----------------

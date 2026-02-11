@@ -3,9 +3,19 @@ from typing import List, Optional
 from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
-from .db import get_session, Tarea, Project, User, UserProject
+from .db import get_session, Tarea, Project, User, UserProject, AppLog
 from .auth import hash_password
-from .models import TaskCreate, TaskUpdate, TaskOut, ProjectCreate, ProjectOut, ProjectUpdate, UserOut, UserCreate
+from .models import (
+    TaskCreate,
+    TaskUpdate,
+    TaskOut,
+    ProjectCreate,
+    ProjectOut,
+    ProjectUpdate,
+    UserOut,
+    UserCreate,
+    AdminUserUpdate,
+)
 
 # ── TASKS CRUD ---------------------------
 
@@ -243,3 +253,76 @@ def assign_user_to_project(user_id: int, project_id: int) -> None:
         assignment = UserProject(user_id=user_id, project_id=project_id)
         session.add(assignment)
         session.commit()
+
+
+def update_user_admin(user_id: int, payload: AdminUserUpdate) -> bool:
+    with get_session() as session:
+        user = session.get(User, user_id)
+        if not user:
+            return False
+        data = payload.model_dump(exclude_unset=True)
+        if not data:
+            return False
+        for key, value in data.items():
+            if hasattr(user, key):
+                setattr(user, key, value)
+        session.add(user)
+        session.commit()
+        return True
+
+
+def reset_user_password(user_id: int, password: str) -> bool:
+    with get_session() as session:
+        user = session.get(User, user_id)
+        if not user:
+            return False
+        password_hash, password_salt = hash_password(password)
+        user.password_hash = password_hash
+        user.password_salt = password_salt
+        session.add(user)
+        session.commit()
+        return True
+
+
+def delete_user_admin(user_id: int) -> bool:
+    with get_session() as session:
+        user = session.get(User, user_id)
+        if not user:
+            return False
+        session.delete(user)
+        session.commit()
+        return True
+
+
+def delete_project(project_id: int) -> bool:
+    with get_session() as session:
+        project = session.get(Project, project_id)
+        if not project:
+            return False
+        has_tasks = session.exec(
+            select(Tarea).where(Tarea.project_id == project_id, Tarea.active == True)
+        ).first()
+        if has_tasks:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se puede borrar un proyecto con tareas activas",
+            )
+        session.delete(project)
+        session.commit()
+        return True
+
+
+def log_event(level: str, message: str, context: Optional[str] = None) -> None:
+    try:
+        with get_session() as session:
+            entry = AppLog(level=level, message=message, context=context)
+            session.add(entry)
+            session.commit()
+    except Exception:
+        pass
+
+
+def list_logs(limit: int = 200) -> List[AppLog]:
+    with get_session() as session:
+        statement = select(AppLog).order_by(AppLog.created_at.desc()).limit(limit)
+        return session.exec(statement).all()

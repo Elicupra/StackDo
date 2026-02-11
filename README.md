@@ -110,6 +110,7 @@ Abre: http://localhost:8501
 La app usa el campo `rol` de `usuarios` para controlar permisos:
 
 - **SuperAdmin**: control total de proyectos y tareas, exportacion y dashboard.
+- **ITAdmin**: consola backend para usuarios, proyectos, logs y backups.
 - **AdminProyecto**: crea/edita su proyecto, gestiona tareas, exporta y ve dashboard solo de su proyecto.
 - **CoordinadorProyecto**: gestiona tareas y dashboard solo de su proyecto, sin crear proyectos.
 - **Usuario**: gestiona tareas solo en su proyecto, sin exportacion ni dashboard.
@@ -133,6 +134,16 @@ Si `ADMIN_SEED_ENABLED=true`, en el arranque se crea un usuario **SuperAdmin** s
 - `ADMIN_ID_USUARIO=admin`
 - `ADMIN_EMAIL=admin@stackdo.local`
 - `ADMIN_PASSWORD=admin123`
+
+### Consola IT (backend)
+
+UI independiente en: `/static/admin/index.html`
+
+Funciones:
+- Gestion de usuarios (editar, reset password, borrar)
+- Gestion de proyectos (borrar)
+- Logs de errores
+- Backups (json/csv)
 
 ---
 
@@ -183,6 +194,7 @@ python/
 |--------|----------|-------------|
 | POST | /auth/login | Login (JWT) |
 | GET | /me | Usuario actual |
+| POST | /auth/register | Registro inicial |
 
 Payload POST/PUT:
 ```json
@@ -218,6 +230,21 @@ Reglas:
 |--------|----------|-------------|
 | GET | /users | Listar usuarios |
 | POST | /users | Crear usuario |
+
+### Admin IT
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | /admin/users | Listar usuarios |
+| PUT | /admin/users/{id} | Editar usuario |
+| POST | /admin/users/{id}/reset-password | Resetear password |
+| DELETE | /admin/users/{id} | Borrar usuario |
+| GET | /admin/projects | Listar proyectos |
+| DELETE | /admin/projects/{id} | Borrar proyecto |
+| GET | /admin/logs | Logs de aplicacion |
+| GET | /admin/backups | Listar backups |
+| POST | /admin/backups | Crear backup (json/csv) |
+| GET | /admin/backups/{name} | Descargar backup |
 
 Payload POST:
 ```json
@@ -334,6 +361,7 @@ localStorage.removeItem('viewMode');
 - Exportar tareas a CSV (descarga)
 - Estadísticas y gráficos (conteos básicos)
 - Gestion de proyectos con logo y color personalizado
+- Consola IT (usuarios, proyectos, logs, backups)
 
 ### Pendientes ⏳
 - Autenticación y autorización
@@ -343,7 +371,17 @@ localStorage.removeItem('viewMode');
 - Ordenamiento personalizable
 - Recurrencia de tareas
 - Vista calendario
-- Vista backend roll IT para gestionar Logs de problemas y errores
+
+---
+
+## Mejoras y pendientes (Consola IT)
+
+- Filtros avanzados de logs (nivel, rango de fechas, texto libre).
+- Retencion y borrado programado de logs.
+- Historial de auditoria para cambios de usuarios/proyectos.
+- Backups incrementales y cifrados.
+- UI para asignacion usuario-proyecto.
+- Export de logs en CSV/JSON.
 
 ---
 

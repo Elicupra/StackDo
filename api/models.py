@@ -1,6 +1,6 @@
 # api/models.py
 from pydantic import BaseModel, Field, validator
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 class TaskBase(BaseModel):
@@ -92,3 +92,26 @@ class TokenOut(BaseModel):
 
 class UserProjectAssign(BaseModel):
     user_id: int
+
+
+class AdminUserUpdate(BaseModel):
+    id_usuario: Optional[str] = Field(default=None, max_length=255)
+    nombre: Optional[str] = Field(default=None, max_length=255)
+    primer_apellido: Optional[str] = Field(default=None, max_length=255)
+    segundo_apellido: Optional[str] = Field(default=None, max_length=255)
+    sexo: Optional[str] = Field(default=None, max_length=1)
+    edad: Optional[int] = None
+    correo_electronico: Optional[str] = Field(default=None, max_length=255)
+    rol: Optional[str] = Field(default=None, max_length=255)
+
+
+class AdminResetPassword(BaseModel):
+    password: str = Field(..., min_length=6, max_length=255)
+
+
+class AppLogOut(BaseModel):
+    id: int
+    level: str
+    message: str
+    context: Optional[str] = None
+    created_at: datetime

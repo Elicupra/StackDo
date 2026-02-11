@@ -178,12 +178,14 @@ function applyUserPermissions() {
     const createProjectFromSelection = document.getElementById('createProjectFromSelection');
     const openUserPickerBtn = document.getElementById('openUserPickerBtn');
     const logoutBtn = document.getElementById('logoutBtn');
+    const adminConsoleBtn = document.getElementById('adminConsoleBtn');
     const role = currentUserRole || 'Usuario';
 
     const canExport = role !== 'Usuario';
     const canDashboard = role !== 'Usuario';
     const canManageProjects = role === 'SuperAdmin' || role === 'AdminProyecto';
     const canManageUsers = role === 'SuperAdmin' || role === 'AdminProyecto';
+    const canAccessAdmin = role === 'SuperAdmin' || role === 'ITAdmin';
 
     if (exportDropdown) exportDropdown.classList.toggle('d-none', !canExport);
     if (dashboardBtn) dashboardBtn.classList.toggle('d-none', !canDashboard);
@@ -193,6 +195,7 @@ function applyUserPermissions() {
     if (createProjectFromSelection) createProjectFromSelection.classList.toggle('d-none', !canManageProjects);
     if (openUserPickerBtn) openUserPickerBtn.classList.toggle('d-none', authEnabled);
     if (logoutBtn) logoutBtn.classList.toggle('d-none', !authEnabled);
+    if (adminConsoleBtn) adminConsoleBtn.classList.toggle('d-none', !canAccessAdmin);
 }
 
 // ==================== MODAL DE SELECCIÓN DE PROYECTO ====================
@@ -982,6 +985,10 @@ document.getElementById('themeToggleBtn').addEventListener('click', () => {
 
 document.getElementById('streamlitDashboardBtn').addEventListener('click', () => {
     window.open('http://localhost:8501', '_blank');
+});
+
+document.getElementById('adminConsoleBtn').addEventListener('click', () => {
+    window.open('/static/admin/index.html', '_blank');
 });
 
 function setActiveProject(project) {
