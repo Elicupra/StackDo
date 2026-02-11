@@ -4,7 +4,7 @@ from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 from .db import get_session, Tarea, Project, User
-from .models import TaskCreate, TaskUpdate, TaskOut, ProjectCreate, ProjectOut, UserOut, UserCreate
+from .models import TaskCreate, TaskUpdate, TaskOut, ProjectCreate, ProjectOut, ProjectUpdate, UserOut, UserCreate
 
 # ── TASKS CRUD ---------------------------
 
@@ -161,6 +161,24 @@ def get_project(id: int) -> ProjectOut | None:
         if not db_project:
             return None
         return ProjectOut(**db_project.model_dump())
+
+
+def update_project(id: int, p: ProjectUpdate) -> bool:
+    with get_session() as session:
+        db_project = session.get(Project, id)
+        if not db_project:
+            return False
+
+        data = p.model_dump(exclude_unset=True)
+        if not data:
+            return False
+
+        for key, value in data.items():
+            setattr(db_project, key, value)
+
+        session.add(db_project)
+        session.commit()
+        return True
 
 
 def list_users() -> List[UserOut]:

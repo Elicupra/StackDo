@@ -6,8 +6,22 @@
     --warning-color: #ffc107;
     --danger-color: #dc3545;
     --info-color: #0dcaf0;
-    --light-bg: #f8f9fa;
+    --app-bg: #f5f7fb;
+    --surface-1: #ffffff;
+    --surface-2: #f0f2f6;
+    --text-color: #1f2937;
+    --muted-color: #6c757d;
+    --border-color: #dee2e6;
     --border-radius: 0.375rem;
+}
+
+body[data-theme='dark'] {
+    --app-bg: #0f1218;
+    --surface-1: #171b23;
+    --surface-2: #1f2430;
+    --text-color: #e2e8f0;
+    --muted-color: #9aa3b2;
+    --border-color: #2a3140;
 }
 
 * {
@@ -16,7 +30,8 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-    background-color: var(--light-bg);
+    background-color: var(--app-bg);
+    color: var(--text-color);
 }
 
 /* ==================== NAVBAR ====================  */
@@ -29,6 +44,20 @@ body {
     margin-right: 0.5rem;
 }
 
+.app-logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+
+.project-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
 .project-pill {
     font-weight: 600;
     padding: 0.45rem 0.7rem;
@@ -37,19 +66,19 @@ body {
 
 /* ==================== TABLA DE TAREAS ====================  */
 .table {
-    background-color: white;
+    background-color: var(--surface-1);
     border-radius: var(--border-radius);
     overflow: hidden;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .table thead {
-    background-color: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
+    background-color: var(--surface-2);
+    border-bottom: 2px solid var(--border-color);
 }
 
 .table-hover tbody tr:hover {
-    background-color: #f8f9fa;
+    background-color: var(--surface-2);
     transition: background-color 0.15s ease-in-out;
 }
 
@@ -60,7 +89,7 @@ body {
 
 .table tbody tr.completed {
     opacity: 0.7;
-    background-color: #f0f0f0;
+    background-color: var(--surface-2);
 }
 
 .table tbody tr.completed td {
@@ -71,8 +100,9 @@ body {
 /* ==================== CARDS ====================  */
 .task-card {
     transition: all 0.3s ease;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--border-color);
     cursor: pointer;
+    background-color: var(--surface-1);
 }
 
 .task-card:hover {
@@ -83,7 +113,7 @@ body {
 
 .task-card .card-title {
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text-color);
     word-break: break-word;
 }
 
@@ -134,8 +164,26 @@ body {
 }
 
 .btn-primary:hover {
-    background-color: #0056b3;
-    border-color: #0056b3;
+    background-color: color-mix(in srgb, var(--primary-color) 85%, #000);
+    border-color: color-mix(in srgb, var(--primary-color) 85%, #000);
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+.text-primary {
+    color: var(--primary-color) !important;
 }
 
 .btn-cta {
@@ -148,8 +196,8 @@ body {
 }
 
 .btn-outline-secondary {
-    color: #6c757d;
-    border-color: #6c757d;
+    color: var(--muted-color);
+    border-color: var(--muted-color);
 }
 
 .btn-outline-secondary:hover {
@@ -164,20 +212,21 @@ body {
 
 /* ==================== MODALES ====================  */
 .modal-content {
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--border-color);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     border-radius: var(--border-radius);
+    background-color: var(--surface-1);
 }
 
 .modal-header {
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
+    background-color: var(--surface-2);
+    border-bottom: 1px solid var(--border-color);
     border-radius: var(--border-radius) var(--border-radius) 0 0;
 }
 
 .modal-header .modal-title {
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text-color);
 }
 
 .modal-body {
@@ -186,17 +235,19 @@ body {
 
 .form-label {
     font-weight: 500;
-    color: #374151;
+    color: var(--text-color);
     margin-bottom: 0.4rem;
 }
 
 .form-control,
 .form-select {
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     padding: 0.5rem 0.75rem;
     font-size: 0.95rem;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background-color: var(--surface-1);
+    color: var(--text-color);
 }
 
 .form-control:focus,
@@ -207,9 +258,10 @@ body {
 
 /* ==================== FILTROS ====================  */
 .card {
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--border-color);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     border-radius: var(--border-radius);
+    background-color: var(--surface-1);
 }
 
 .card-body {
@@ -224,8 +276,8 @@ body {
 }
 
 .stat-pill {
-    background: #ffffff;
-    border: 1px solid #dee2e6;
+    background: var(--surface-1);
+    border: 1px solid var(--border-color);
     border-radius: 999px;
     padding: 0.5rem 0.9rem;
     display: flex;
@@ -238,14 +290,14 @@ body {
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #6c757d;
+    color: var(--muted-color);
     font-weight: 600;
 }
 
 .stat-value {
     font-size: 1rem;
     font-weight: 700;
-    color: #1f2937;
+    color: var(--text-color);
 }
 
 .stat-pending .stat-value {
@@ -294,7 +346,7 @@ body {
 
 /* ==================== UTILIDADES ====================  */
 .text-muted {
-    color: #6c757d !important;
+    color: var(--muted-color) !important;
 }
 
 .fw-bold {
@@ -307,7 +359,16 @@ body {
 
 .completed {
     text-decoration: line-through;
-    color: #6c757d;
+    color: var(--muted-color);
+}
+
+.logo-preview img {
+    max-width: 120px;
+    max-height: 120px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--surface-2);
+    padding: 6px;
 }
 
 /* ==================== TRANSICIONES ====================  */

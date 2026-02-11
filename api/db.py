@@ -38,6 +38,8 @@ class Project(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, max_length=200)
     description: Optional[str] = None
+    color: Optional[str] = Field(default=None, max_length=20)
+    logo: Optional[str] = None
 
 class User(SQLModel, table=True):
     __tablename__ = "usuarios"
@@ -95,6 +97,12 @@ def init_db():
             conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {DB_SCHEMA}"))
 
     SQLModel.metadata.create_all(engine)
+
+    # Migracion minima: agregar color y logo a projects
+    projects_table = f"{DB_SCHEMA}.projects" if DB_SCHEMA else "projects"
+    with engine.begin() as conn:
+        conn.execute(text(f"ALTER TABLE {projects_table} ADD COLUMN IF NOT EXISTS color varchar(20)"))
+        conn.execute(text(f"ALTER TABLE {projects_table} ADD COLUMN IF NOT EXISTS logo text"))
 
     # Migración mínima: asegurar que active sea boolean para evitar casts inválidos
     table_name = f"{DB_SCHEMA}.tareas" if DB_SCHEMA else "tareas"

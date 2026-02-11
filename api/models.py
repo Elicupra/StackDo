@@ -37,12 +37,23 @@ class TaskOut(TaskBase):
 class ProjectCreate(BaseModel):
     name: str = Field(..., max_length=200)
     description: Optional[str] = None
+    color: Optional[str] = Field(default=None, max_length=20)
+    logo: Optional[str] = None
 
 
 class ProjectOut(BaseModel):
     id: int
     name: str
     description: Optional[str] = None
+    color: Optional[str] = None
+    logo: Optional[str] = None
+
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = None
+    color: Optional[str] = Field(default=None, max_length=20)
+    logo: Optional[str] = None
 
 
 class UserOut(BaseModel):

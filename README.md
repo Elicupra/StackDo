@@ -255,6 +255,40 @@ localStorage.removeItem('viewMode');
 
 ---
 
+---
+
+## Estado de caracteristicas
+
+### Completadas ✅
+- Comentarios en tareas
+- Asignación de tareas a usuarios
+- Temas (dark mode / light mode)
+- Exportar tareas a CSV
+- Estadísticas y gráficos (conteos básicos)
+- Gestion de proyectos con logo y color personalizado
+
+### Pendientes ⏳
+- Autenticación y autorización
+- Exportar tareas a PDF
+- Drag & drop para cambiar estado
+- Notificaciones por email
+- Ordenamiento personalizable
+- Recurrencia de tareas
+
+---
+
+## Roadmap futuro
+
+Las siguientes funcionalidades estan en la lista de desarrollo:
+
+1. **Autenticación**: Login/registro con roles (admin, usuario).
+2. **PDF Export**: Exportar tareas a PDF con estilos.
+3. **Drag & Drop**: Cambiar estado de tarea arrastrando entre columnas Kanban.
+4. **Email Notifications**: Notificar cambios de tarea a usuarios asignados.
+5. **Ordenamiento**: Permitir ordenar por cualquier columna (titulo, fecha, prioridad).
+6. **Recurrencia**: Crear tareas recurrentes (diaria, semanal, mensual).
+
+
 ## Licencia
 
 MIT

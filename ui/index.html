@@ -14,16 +14,17 @@
     <!-- Estilos personalizados -->
     <link href="styles.css" rel="stylesheet"/>
 
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 2h12v12H2z' fill='%23007bff'/></svg>">
+    <link rel="icon" type="image/png" href="assets/stackdo-logo.png">
 </head>
 
-<body class="bg-light">
+<body>
 
 <!-- ==================== NAVBAR ====================  -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow-sm">
     <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="#">
-            <i class="fas fa-tasks"></i> StackDo
+        <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="#">
+            <img src="assets/stackdo-logo.png" alt="StackDo" class="app-logo" />
+            <span>StackDo</span>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
@@ -32,8 +33,12 @@
             <div class="navbar-text ms-auto d-flex align-items-center gap-2">
                 <span class="text-white-50 small">Proyecto activo</span>
                 <span id="currentProjectName" class="badge bg-light text-primary project-pill">Cargando...</span>
+                <img id="currentProjectLogo" alt="Logo proyecto" class="project-logo d-none" />
                 <button id="openProjectPickerBtn" type="button" class="btn btn-sm btn-outline-light">
                     Cambiar
+                </button>
+                <button id="themeToggleBtn" type="button" class="btn btn-sm btn-outline-light" title="Cambiar tema">
+                    <i class="fas fa-moon"></i>
                 </button>
             </div>
         </div>
@@ -84,6 +89,12 @@
         <div class="col-auto">
             <button id="createProjectBtn" class="btn btn-outline-primary btn-cta">
                 <i class="fas fa-plus"></i> Nuevo Proyecto
+            </button>
+        </div>
+
+        <div class="col-auto">
+            <button id="editProjectBtn" class="btn btn-outline-primary btn-cta">
+                <i class="fas fa-pen"></i> Editar Proyecto
             </button>
         </div>
 
@@ -308,7 +319,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-project-diagram"></i> Crear Proyecto</h5>
+                    <h5 class="modal-title" id="projectModalTitle"><i class="fas fa-project-diagram"></i> Crear Proyecto</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -319,6 +330,16 @@
                     <div class="mb-3">
                         <label class="form-label">Descripción</label>
                         <textarea id="projectDesc" class="form-control" placeholder="Descripción opcional..." rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Color del proyecto</label>
+                        <input id="projectColor" type="color" class="form-control form-control-color" value="#1b74e4" title="Color del proyecto">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Logo (PNG o SVG)</label>
+                        <input id="projectLogo" type="file" class="form-control" accept="image/png,image/svg+xml">
+                        <div class="form-text">Se guardara el logo en el proyecto activo.</div>
+                        <div class="logo-preview mt-2 d-none" id="projectLogoPreview"></div>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -9,10 +9,11 @@ from .crud import (
     create_project,
     list_projects,
     get_project,
+    update_project,
     list_users,
     create_user,
 )
-from .models import TaskCreate, TaskUpdate, TaskOut, ProjectCreate, ProjectOut, UserOut, UserCreate
+from .models import TaskCreate, TaskUpdate, TaskOut, ProjectCreate, ProjectOut, ProjectUpdate, UserOut, UserCreate
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from typing import Optional
@@ -82,6 +83,14 @@ def api_get_project(id: int):
     if not p:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Proyecto no encontrado")
     return p
+
+
+@app.put("/projects/{id}", response_model=ProjectOut)
+def api_update_project(id: int, payload: ProjectUpdate):
+    ok = update_project(id, payload)
+    if not ok:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Proyecto no encontrado o sin cambios")
+    return get_project(id)
 
 
 # ---------------- Users endpoints ----------------

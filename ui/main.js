@@ -2,6 +2,7 @@
 const API = "/tasks";
 const API_PROJECTS = "/projects";
 const API_USERS = "/users";
+const DEFAULT_PRIMARY_COLOR = '#007bff';
 
 // Estado global
 let currentViewMode = localStorage.getItem('viewMode') || 'table';
@@ -16,10 +17,15 @@ let currentFilters = {
 let allTasks = [];
 let lastFilteredTasks = [];
 let filterTimeout;
+let projectsCache = new Map();
+let projectEditId = null;
+let projectLogoDataUrl = null;
+let projectLogoChanged = false;
 
 // ==================== INICIALIZACIÓN ====================
 
 async function initApp() {
+    initTheme();
     await loadUsers();
     const hasCurrentProject = await loadProjects();
     if (!hasCurrentProject) {
@@ -27,6 +33,25 @@ async function initApp() {
         return;
     }
     loadTasks();
+}
+
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        applyTheme(savedTheme);
+        return;
+    }
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(prefersDark ? 'dark' : 'light');
+}
+
+function applyTheme(theme) {
+    document.body.dataset.theme = theme;
+    localStorage.setItem('theme', theme);
+    const toggleIcon = document.querySelector('#themeToggleBtn i');
+    if (toggleIcon) {
+        toggleIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
 }
 
 // ==================== MODAL DE SELECCIÓN DE PROYECTO ====================
@@ -47,17 +72,20 @@ function showProjectSelectionModal(forceSelect = false) {
 }
 
 document.getElementById('projectListContainer').addEventListener('click', async (e) => {
-    if (e.target.classList.contains('project-option')) {
-        currentProjectId = e.target.dataset.projectId;
-        localStorage.setItem('currentProjectId', currentProjectId);
-        const projectName = e.target.textContent.trim();
-        document.getElementById('currentProjectName').textContent = projectName;
-        document.getElementById('projectSelect').value = currentProjectId;
-        const modal = bootstrap.Modal.getInstance(document.getElementById('projectSelectionModal'));
-        modal.hide();
-        resetFilters();
-        loadTasks();
-    }
+    const option = e.target.closest('.project-option');
+    if (!option) return;
+
+    const selectedId = option.dataset.projectId;
+    const project = projectsCache.get(parseInt(selectedId));
+    if (!project) return;
+
+    setActiveProject(project);
+    document.getElementById('projectSelect').value = currentProjectId;
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('projectSelectionModal'));
+    modal.hide();
+    resetFilters();
+    loadTasks();
 });
 
 // ==================== CARGAR PROYECTOS ====================
@@ -67,6 +95,8 @@ async function loadProjects() {
         const res = await fetch(API_PROJECTS);
         if (!res.ok) throw new Error('No se pudieron cargar proyectos');
         const projects = await res.json();
+
+        projectsCache = new Map(projects.map(p => [p.id, p]));
         
         const sel = document.getElementById('projectSelect');
         sel.innerHTML = '<option value="">-- Cambiar Proyecto --</option>';
@@ -95,7 +125,8 @@ async function loadProjects() {
                 btn.type = 'button';
                 btn.className = 'list-group-item list-group-item-action project-option';
                 btn.dataset.projectId = p.id;
-                btn.textContent = p.name;
+                const logo = p.logo ? `<img src="${p.logo}" alt="Logo" class="me-2 project-logo" />` : '';
+                btn.innerHTML = `${logo}<span>${p.name}</span>`;
                 projectList.appendChild(btn);
             });
         }
@@ -113,7 +144,7 @@ async function loadProjects() {
         if (currentProjectId) {
             const currentProject = projects.find(p => p.id == currentProjectId);
             if (currentProject) {
-                document.getElementById('currentProjectName').textContent = currentProject.name;
+                setActiveProject(currentProject);
                 document.getElementById('projectSelect').value = currentProjectId;
                 hasCurrentProject = true;
             } else {
@@ -124,6 +155,7 @@ async function loadProjects() {
         }
         if (!hasCurrentProject) {
             document.getElementById('currentProjectName').textContent = 'Sin proyecto';
+            applyProjectBrand(null);
         }
 
         return hasCurrentProject;
@@ -569,12 +601,11 @@ function getTodayStamp() {
 
 document.getElementById('projectSelect').addEventListener('change', (e) => {
     if (e.target.value) {
-        currentProjectId = e.target.value;
-        localStorage.setItem('currentProjectId', currentProjectId);
-        
-        const selectedOption = e.target.options[e.target.selectedIndex];
-        document.getElementById('currentProjectName').textContent = selectedOption.textContent;
-        
+        const selectedId = parseInt(e.target.value);
+        const project = projectsCache.get(selectedId);
+        if (project) {
+            setActiveProject(project);
+        }
         resetFilters();
         loadTasks();
     }
@@ -583,6 +614,32 @@ document.getElementById('projectSelect').addEventListener('change', (e) => {
 document.getElementById('openProjectPickerBtn').addEventListener('click', () => {
     showProjectSelectionModal(false);
 });
+
+document.getElementById('themeToggleBtn').addEventListener('click', () => {
+    const currentTheme = document.body.dataset.theme || 'light';
+    applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+});
+
+function setActiveProject(project) {
+    currentProjectId = String(project.id);
+    localStorage.setItem('currentProjectId', currentProjectId);
+    document.getElementById('currentProjectName').textContent = project.name;
+    applyProjectBrand(project);
+}
+
+function applyProjectBrand(project) {
+    const color = project && project.color ? project.color : DEFAULT_PRIMARY_COLOR;
+    document.documentElement.style.setProperty('--primary-color', color);
+
+    const logoEl = document.getElementById('currentProjectLogo');
+    if (project && project.logo) {
+        logoEl.src = project.logo;
+        logoEl.classList.remove('d-none');
+    } else {
+        logoEl.classList.add('d-none');
+        logoEl.removeAttribute('src');
+    }
+}
 
 function setProjectSelectMode(mode) {
     const projectSelect = document.getElementById('taskProjectSelect');
@@ -835,55 +892,78 @@ function showToast(message, type = 'info') {
 document.getElementById('projectFormBtn').addEventListener('click', async () => {
     const name = document.getElementById('projectName').value.trim();
     const desc = document.getElementById('projectDesc').value.trim() || null;
-    
+    const color = document.getElementById('projectColor').value || DEFAULT_PRIMARY_COLOR;
+
     if (!name) {
         showToast('El nombre del proyecto es obligatorio', 'warning');
         return;
     }
-    
+
+    const payload = {
+        name,
+        description: desc,
+        color
+    };
+
+    if (projectLogoChanged) {
+        payload.logo = projectLogoDataUrl;
+    }
+
+    const method = projectEditId ? 'PUT' : 'POST';
+    const url = projectEditId ? `${API_PROJECTS}/${projectEditId}` : API_PROJECTS;
+
     try {
-        const res = await fetch(API_PROJECTS, {
-            method: 'POST',
+        const res = await fetch(url, {
+            method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, description: desc })
+            body: JSON.stringify(payload)
         });
-        
+
         if (!res.ok) {
             const error = await res.json();
-            throw new Error(error.detail || 'Error al crear proyecto');
+            throw new Error(error.detail || 'Error al guardar proyecto');
         }
-        
-        const newProject = await res.json();
-        
-        showToast('Proyecto creado', 'success');
-        document.getElementById('projectName').value = '';
-        document.getElementById('projectDesc').value = '';
-        
+
+        const savedProject = await res.json();
+
+        showToast(projectEditId ? 'Proyecto actualizado' : 'Proyecto creado', 'success');
         const modal = bootstrap.Modal.getInstance(document.getElementById('projectModal'));
         modal.hide();
-        
+
         await loadProjects();
-        
-        // Si venimos del modal de selección inicial, auto-seleccionar el nuevo proyecto
-        const selectionModal = bootstrap.Modal.getInstance(document.getElementById('projectSelectionModal'));
-        if (selectionModal) {
-            currentProjectId = newProject.id;
-            localStorage.setItem('currentProjectId', currentProjectId);
-            document.getElementById('currentProjectName').textContent = newProject.name;
-            selectionModal.hide();
-            loadTasks();
+
+        if (!projectEditId) {
+            const selectionModal = bootstrap.Modal.getInstance(document.getElementById('projectSelectionModal'));
+            if (selectionModal) {
+                setActiveProject(savedProject);
+                selectionModal.hide();
+            }
+        } else if (currentProjectId && parseInt(currentProjectId) === savedProject.id) {
+            setActiveProject(savedProject);
         }
+
+        loadTasks();
     } catch (e) {
-        console.error('Error creando usuario:', e);
+        console.error('Error guardando proyecto:', e);
         showToast(e.message, 'danger');
     }
 });
 
 document.getElementById('createProjectBtn').addEventListener('click', () => {
-    document.getElementById('projectName').value = '';
-    document.getElementById('projectDesc').value = '';
-    const modal = new bootstrap.Modal(document.getElementById('projectModal'));
-    modal.show();
+    openProjectModal('create');
+});
+
+document.getElementById('editProjectBtn').addEventListener('click', () => {
+    if (!currentProjectId) {
+        showToast('Selecciona un proyecto para editar', 'warning');
+        return;
+    }
+    const project = projectsCache.get(parseInt(currentProjectId));
+    if (!project) {
+        showToast('Proyecto no encontrado', 'warning');
+        return;
+    }
+    openProjectModal('edit', project);
 });
 
 // ==================== CREAR USUARIO ====================
@@ -944,17 +1024,88 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
         modal.hide();
         await loadUsers();
     } catch (e) {
+        console.error('Error creando usuario:', e);
         showToast(e.message, 'danger');
     }
 });
 
 // Botón para crear proyecto desde modal de selección inicial
 document.getElementById('createProjectFromSelection').addEventListener('click', () => {
-    document.getElementById('projectName').value = '';
-    document.getElementById('projectDesc').value = '';
+    openProjectModal('create');
+});
+
+document.getElementById('projectLogo').addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) {
+        projectLogoDataUrl = null;
+        projectLogoChanged = false;
+        updateProjectLogoPreview(null);
+        return;
+    }
+
+    const validTypes = ['image/png', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+        showToast('Solo se permite PNG o SVG', 'warning');
+        e.target.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        projectLogoDataUrl = reader.result;
+        projectLogoChanged = true;
+        updateProjectLogoPreview(projectLogoDataUrl);
+    };
+    reader.readAsDataURL(file);
+});
+
+function openProjectModal(mode, project = null) {
+    const title = document.getElementById('projectModalTitle');
+    const actionBtn = document.getElementById('projectFormBtn');
+    const logoInput = document.getElementById('projectLogo');
+    const logoPreview = document.getElementById('projectLogoPreview');
+
+    projectEditId = null;
+    projectLogoDataUrl = null;
+    projectLogoChanged = false;
+    logoInput.value = '';
+
+    if (mode === 'edit' && project) {
+        projectEditId = project.id;
+        document.getElementById('projectName').value = project.name || '';
+        document.getElementById('projectDesc').value = project.description || '';
+        document.getElementById('projectColor').value = project.color || DEFAULT_PRIMARY_COLOR;
+        projectLogoDataUrl = project.logo || null;
+        updateProjectLogoPreview(projectLogoDataUrl);
+        title.innerHTML = '<i class="fas fa-project-diagram"></i> Editar Proyecto';
+        actionBtn.textContent = 'Actualizar';
+    } else {
+        document.getElementById('projectName').value = '';
+        document.getElementById('projectDesc').value = '';
+        document.getElementById('projectColor').value = DEFAULT_PRIMARY_COLOR;
+        updateProjectLogoPreview(null);
+        title.innerHTML = '<i class="fas fa-project-diagram"></i> Crear Proyecto';
+        actionBtn.textContent = 'Crear';
+    }
+
+    if (!projectLogoDataUrl) {
+        logoPreview.classList.add('d-none');
+    }
+
     const modal = new bootstrap.Modal(document.getElementById('projectModal'));
     modal.show();
-});
+}
+
+function updateProjectLogoPreview(dataUrl) {
+    const preview = document.getElementById('projectLogoPreview');
+    if (!dataUrl) {
+        preview.classList.add('d-none');
+        preview.innerHTML = '';
+        return;
+    }
+    preview.classList.remove('d-none');
+    preview.innerHTML = `<img src="${dataUrl}" alt="Logo del proyecto">`;
+}
 
 // ==================== INICIALIZAR APP ====================
 
