@@ -7,6 +7,10 @@ const DEFAULT_PRIMARY_COLOR = '#007bff';
 // Estado global
 let currentViewMode = localStorage.getItem('viewMode') || 'table';
 let currentProjectId = localStorage.getItem('currentProjectId') || null;
+let currentUserId = localStorage.getItem('currentUserId') || null;
+let currentUserRole = localStorage.getItem('currentUserRole') || null;
+let authToken = localStorage.getItem('authToken') || null;
+let authEnabled = false;
 let currentFilters = {
     search: '',
     status: '',
@@ -18,15 +22,50 @@ let allTasks = [];
 let lastFilteredTasks = [];
 let filterTimeout;
 let projectsCache = new Map();
+let usersCache = [];
 let projectEditId = null;
 let projectLogoDataUrl = null;
 let projectLogoChanged = false;
+let authFetchConfigured = false;
 
 // ==================== INICIALIZACIÓN ====================
 
 async function initApp() {
     initTheme();
-    await loadUsers();
+    authEnabled = await fetchAuthStatus();
+
+    if (authEnabled) {
+        if (authToken) {
+            configureAuthFetch();
+            const me = await fetchCurrentUser();
+            if (me) {
+                setActiveUser(me);
+                hideLoginView();
+                const hasCurrentProject = await loadProjects();
+                if (!hasCurrentProject) {
+                    showProjectSelectionModal(true);
+                    return;
+                }
+                loadTasks();
+                return;
+            }
+        }
+        showLoginView();
+        return;
+    }
+
+    hideLoginView();
+    const hasUsers = await loadUsers();
+    if (!hasUsers) {
+        showUserSelectionModal(true);
+        return;
+    }
+    const hasCurrentUser = ensureActiveUser();
+    if (!hasCurrentUser) {
+        showUserSelectionModal(true);
+        return;
+    }
+    configureAuthFetch();
     const hasCurrentProject = await loadProjects();
     if (!hasCurrentProject) {
         showProjectSelectionModal(true);
@@ -53,6 +92,285 @@ function applyTheme(theme) {
         toggleIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     }
 }
+
+function showLoginView() {
+    const loginView = document.getElementById('loginView');
+    const appView = document.getElementById('appView');
+    if (loginView) loginView.classList.remove('d-none');
+    if (appView) appView.classList.add('d-none');
+}
+
+function hideLoginView() {
+    const loginView = document.getElementById('loginView');
+    const appView = document.getElementById('appView');
+    if (loginView) loginView.classList.add('d-none');
+    if (appView) appView.classList.remove('d-none');
+}
+
+async function fetchAuthStatus() {
+    try {
+        const res = await fetch('/auth/status');
+        if (!res.ok) return false;
+        const data = await res.json();
+        return !!data.enabled;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function fetchCurrentUser() {
+    try {
+        const res = await fetch('/me');
+        if (!res.ok) throw new Error('No autorizado');
+        return await res.json();
+    } catch (e) {
+        authToken = null;
+        localStorage.removeItem('authToken');
+        return null;
+    }
+}
+
+function configureAuthFetch() {
+    if (authFetchConfigured) return;
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = (input, init = {}) => {
+        const headers = new Headers(init.headers || {});
+        if (authEnabled && authToken) {
+            headers.set('Authorization', `Bearer ${authToken}`);
+        } else if (!authEnabled && currentUserId) {
+            headers.set('X-User-Id', currentUserId);
+        }
+        return originalFetch(input, { ...init, headers });
+    };
+    authFetchConfigured = true;
+}
+
+function ensureActiveUser() {
+    if (!currentUserId) return false;
+    const user = usersCache.find(u => String(u.id) === String(currentUserId));
+    if (!user) {
+        currentUserId = null;
+        currentUserRole = null;
+        localStorage.removeItem('currentUserId');
+        localStorage.removeItem('currentUserRole');
+        return false;
+    }
+    setActiveUser(user);
+    return true;
+}
+
+function setActiveUser(user) {
+    currentUserId = String(user.id);
+    currentUserRole = user.rol || 'Usuario';
+    localStorage.setItem('currentUserId', currentUserId);
+    localStorage.setItem('currentUserRole', currentUserRole);
+    usersCache = [user];
+    document.getElementById('currentUserName').textContent = `${user.nombre} ${user.primer_apellido}`.trim();
+    applyUserPermissions();
+}
+
+function applyUserPermissions() {
+    const exportDropdown = document.getElementById('exportDropdown');
+    const dashboardBtn = document.getElementById('streamlitDashboardBtn');
+    const createProjectBtn = document.getElementById('createProjectBtn');
+    const editProjectBtn = document.getElementById('editProjectBtn');
+    const openUserModalBtn = document.getElementById('openUserModalBtn');
+    const createProjectFromSelection = document.getElementById('createProjectFromSelection');
+    const openUserPickerBtn = document.getElementById('openUserPickerBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const role = currentUserRole || 'Usuario';
+
+    const canExport = role !== 'Usuario';
+    const canDashboard = role !== 'Usuario';
+    const canManageProjects = role === 'SuperAdmin' || role === 'AdminProyecto';
+    const canManageUsers = role === 'SuperAdmin' || role === 'AdminProyecto';
+
+    if (exportDropdown) exportDropdown.classList.toggle('d-none', !canExport);
+    if (dashboardBtn) dashboardBtn.classList.toggle('d-none', !canDashboard);
+    if (createProjectBtn) createProjectBtn.classList.toggle('d-none', !canManageProjects);
+    if (editProjectBtn) editProjectBtn.classList.toggle('d-none', !canManageProjects);
+    if (openUserModalBtn) openUserModalBtn.classList.toggle('d-none', !canManageUsers);
+    if (createProjectFromSelection) createProjectFromSelection.classList.toggle('d-none', !canManageProjects);
+    if (openUserPickerBtn) openUserPickerBtn.classList.toggle('d-none', authEnabled);
+    if (logoutBtn) logoutBtn.classList.toggle('d-none', !authEnabled);
+}
+
+// ==================== MODAL DE SELECCIÓN DE PROYECTO ====================
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+    const identifier = document.getElementById('loginIdentifier').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errorEl = document.getElementById('loginError');
+    if (errorEl) errorEl.classList.add('d-none');
+
+    if (!identifier || !password) {
+        if (errorEl) {
+            errorEl.textContent = 'Completa las credenciales';
+            errorEl.classList.remove('d-none');
+        }
+        return;
+    }
+
+    try {
+        const res = await fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier, password })
+        });
+        if (!res.ok) throw new Error('Credenciales invalidas');
+        const data = await res.json();
+        authToken = data.access_token;
+        localStorage.setItem('authToken', authToken);
+        configureAuthFetch();
+
+        const me = await fetchCurrentUser();
+        if (!me) throw new Error('No se pudo obtener el usuario');
+        setActiveUser(me);
+
+        hideLoginView();
+
+        const hasCurrentProject = await loadProjects();
+        if (!hasCurrentProject) {
+            showProjectSelectionModal(true);
+            return;
+        }
+        loadTasks();
+    } catch (e) {
+        if (errorEl) {
+            errorEl.textContent = 'Credenciales invalidas';
+            errorEl.classList.remove('d-none');
+        }
+    }
+});
+
+document.getElementById('showLoginFormBtn').addEventListener('click', () => {
+    document.getElementById('loginForm').classList.remove('d-none');
+    document.getElementById('registerForm').classList.add('d-none');
+});
+
+document.getElementById('showRegisterFormBtn').addEventListener('click', () => {
+    document.getElementById('registerForm').classList.remove('d-none');
+    document.getElementById('loginForm').classList.add('d-none');
+});
+
+document.getElementById('registerBtn').addEventListener('click', async () => {
+    const idUsuario = document.getElementById('registerId').value.trim();
+    const nombre = document.getElementById('registerName').value.trim();
+    const primerApellido = document.getElementById('registerLastName').value.trim();
+    const correo = document.getElementById('registerEmail').value.trim() || null;
+    const password = document.getElementById('registerPassword').value;
+    const errorEl = document.getElementById('registerError');
+    const successEl = document.getElementById('registerSuccess');
+
+    if (errorEl) {
+        errorEl.classList.add('d-none');
+        errorEl.textContent = '';
+    }
+    if (successEl) successEl.classList.add('d-none');
+
+    if (!idUsuario || !nombre || !primerApellido || !password) {
+        if (errorEl) {
+            errorEl.textContent = 'Completa los campos obligatorios';
+            errorEl.classList.remove('d-none');
+        }
+        return;
+    }
+
+    try {
+        const res = await fetch('/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id_usuario: idUsuario,
+                nombre,
+                primer_apellido: primerApellido,
+                correo_electronico: correo,
+                password
+            })
+        });
+        if (!res.ok) {
+            let errorMessage = 'Error al crear usuario';
+            try {
+                const data = await res.json();
+                errorMessage = data.detail || errorMessage;
+            } catch (parseError) {
+                const text = await res.text();
+                if (text) errorMessage = text;
+            }
+            throw new Error(errorMessage);
+        }
+
+        document.getElementById('registerId').value = '';
+        document.getElementById('registerName').value = '';
+        document.getElementById('registerLastName').value = '';
+        document.getElementById('registerEmail').value = '';
+        document.getElementById('registerPassword').value = '';
+
+        if (successEl) successEl.classList.remove('d-none');
+        document.getElementById('loginForm').classList.remove('d-none');
+        document.getElementById('registerForm').classList.add('d-none');
+    } catch (e) {
+        if (errorEl) {
+            errorEl.textContent = e.message;
+            errorEl.classList.remove('d-none');
+        }
+    }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+    authToken = null;
+    currentUserId = null;
+    currentUserRole = null;
+    currentProjectId = null;
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUserId');
+    localStorage.removeItem('currentUserRole');
+    localStorage.removeItem('currentProjectId');
+    showLoginView();
+});
+
+// ==================== MODAL DE SELECCIÓN DE PROYECTO ====================
+
+function showUserSelectionModal(forceSelect = false) {
+    const modalEl = document.getElementById('userSelectionModal');
+    const closeBtn = document.getElementById('userSelectionCloseBtn');
+    if (forceSelect) {
+        closeBtn.classList.add('d-none');
+    } else {
+        closeBtn.classList.remove('d-none');
+    }
+    const modal = new bootstrap.Modal(modalEl, {
+        backdrop: forceSelect ? 'static' : true,
+        keyboard: !forceSelect
+    });
+    modal.show();
+}
+
+document.getElementById('userListContainer').addEventListener('click', async (e) => {
+    const option = e.target.closest('.user-option');
+    if (!option) return;
+
+    const selectedId = option.dataset.userId;
+    const user = usersCache.find(u => String(u.id) === String(selectedId));
+    if (!user) return;
+
+    setActiveUser(user);
+    configureAuthFetch();
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('userSelectionModal'));
+    modal.hide();
+
+    const hasCurrentProject = await loadProjects();
+    if (!hasCurrentProject) {
+        showProjectSelectionModal(true);
+        return;
+    }
+    loadTasks();
+});
+
+document.getElementById('openUserPickerBtn').addEventListener('click', () => {
+    showUserSelectionModal(false);
+});
 
 // ==================== MODAL DE SELECCIÓN DE PROYECTO ====================
 
@@ -153,6 +471,11 @@ async function loadProjects() {
                 localStorage.removeItem('currentProjectId');
             }
         }
+        if (!hasCurrentProject && projects.length) {
+            setActiveProject(projects[0]);
+            document.getElementById('projectSelect').value = projects[0].id;
+            hasCurrentProject = true;
+        }
         if (!hasCurrentProject) {
             document.getElementById('currentProjectName').textContent = 'Sin proyecto';
             applyProjectBrand(null);
@@ -170,19 +493,48 @@ async function loadProjects() {
 
 async function loadUsers() {
     try {
+        if (authEnabled && currentUserRole && !['SuperAdmin', 'AdminProyecto'].includes(currentUserRole)) {
+            const userSelect = document.getElementById('taskUserSelect');
+            userSelect.innerHTML = '<option value="">Seleccionar usuario...</option>';
+            if (currentUserId) {
+                const label = document.getElementById('currentUserName').textContent || 'Usuario actual';
+                const opt = document.createElement('option');
+                opt.value = currentUserId;
+                opt.textContent = label;
+                userSelect.appendChild(opt);
+                userSelect.value = currentUserId;
+            }
+            return true;
+        }
+
         const res = await fetch(API_USERS);
         if (!res.ok) throw new Error('No se pudieron cargar usuarios');
         const users = await res.json();
 
+        usersCache = users;
+
         const userSelect = document.getElementById('taskUserSelect');
         userSelect.innerHTML = '<option value="">Seleccionar usuario...</option>';
+
+        const userList = document.getElementById('userListContainer');
+        const noUsersMsg = document.getElementById('noUsersMessage');
+        userList.innerHTML = '';
         if (!users.length) {
             const opt = document.createElement('option');
             opt.value = '';
             opt.textContent = 'No hay usuarios disponibles';
             opt.disabled = true;
             userSelect.appendChild(opt);
+            if (noUsersMsg) {
+                noUsersMsg.classList.remove('d-none');
+                userList.classList.add('d-none');
+            }
             return false;
+        }
+
+        if (noUsersMsg) {
+            noUsersMsg.classList.add('d-none');
+            userList.classList.remove('d-none');
         }
 
         users.forEach(u => {
@@ -191,6 +543,13 @@ async function loadUsers() {
             const label = `${u.nombre} ${u.primer_apellido}`.trim();
             opt.textContent = u.id_usuario ? `${label} (${u.id_usuario})` : label;
             userSelect.appendChild(opt);
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action user-option';
+            btn.dataset.userId = u.id;
+            btn.innerHTML = `<span>${opt.textContent}</span>`;
+            userList.appendChild(btn);
         });
         return true;
     } catch (e) {
@@ -512,7 +871,8 @@ document.getElementById('exportCsvBtn').addEventListener('click', () => {
 });
 
 async function fetchExportTasks() {
-    const query = currentProjectId ? `?project_id=${currentProjectId}` : '';
+    const projectIdNum = currentProjectId ? parseInt(currentProjectId, 10) : NaN;
+    const query = Number.isFinite(projectIdNum) ? `?project_id=${projectIdNum}` : '';
     try {
         const res = await fetch(`/tasks/export${query}`);
         if (!res.ok) throw new Error('No se pudieron exportar tareas');
@@ -618,6 +978,10 @@ document.getElementById('openProjectPickerBtn').addEventListener('click', () => 
 document.getElementById('themeToggleBtn').addEventListener('click', () => {
     const currentTheme = document.body.dataset.theme || 'light';
     applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+});
+
+document.getElementById('streamlitDashboardBtn').addEventListener('click', () => {
+    window.open('http://localhost:8501', '_blank');
 });
 
 function setActiveProject(project) {
@@ -983,6 +1347,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     const edadValue = document.getElementById('userAge').value;
     const rol = document.getElementById('userRole').value.trim() || null;
     const correo = document.getElementById('userEmail').value.trim() || null;
+    const password = document.getElementById('userPassword').value;
 
     if (!idUsuario || !nombre || !primerApellido) {
         showToast('Completa los campos obligatorios', 'warning');
@@ -997,7 +1362,8 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
         sexo,
         edad: edadValue ? parseInt(edadValue) : null,
         correo_electronico: correo,
-        rol
+        rol,
+        password: password || null
     };
 
     try {

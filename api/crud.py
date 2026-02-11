@@ -3,7 +3,8 @@ from typing import List, Optional
 from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
-from .db import get_session, Tarea, Project, User
+from .db import get_session, Tarea, Project, User, UserProject
+from .auth import hash_password
 from .models import TaskCreate, TaskUpdate, TaskOut, ProjectCreate, ProjectOut, ProjectUpdate, UserOut, UserCreate
 
 # ── TASKS CRUD ---------------------------
@@ -71,9 +72,13 @@ def get_task(id: int) -> TaskOut | None:
         # Convertimos a TaskOut
         return TaskOut(**db_task.model_dump())
 
-def list_active_tasks(project_id: int | None = None) -> List[TaskOut]:
+def list_active_tasks(project_id: int | None = None, project_ids: Optional[list[int]] = None) -> List[TaskOut]:
     with get_session() as session:
         statement = select(Tarea).where(Tarea.active == True)
+        if project_ids is not None:
+            if not project_ids:
+                return []
+            statement = statement.where(Tarea.project_id.in_(project_ids))
         if project_id is not None:
             statement = statement.where(Tarea.project_id == project_id)
             
@@ -155,6 +160,15 @@ def list_projects() -> List[ProjectOut]:
         results = session.exec(statement).all()
         return [ProjectOut(**p.model_dump()) for p in results]
 
+
+def list_projects_by_ids(project_ids: list[int]) -> List[ProjectOut]:
+    if not project_ids:
+        return []
+    with get_session() as session:
+        statement = select(Project).where(Project.id.in_(project_ids))
+        results = session.exec(statement).all()
+        return [ProjectOut(**p.model_dump()) for p in results]
+
 def get_project(id: int) -> ProjectOut | None:
     with get_session() as session:
         db_project = session.get(Project, id)
@@ -188,9 +202,21 @@ def list_users() -> List[UserOut]:
         return [UserOut(**u.model_dump()) for u in results]
 
 
+def get_user_by_identifier(identifier: str) -> User | None:
+    with get_session() as session:
+        statement = select(User).where(
+            (User.id_usuario == identifier) | (User.correo_electronico == identifier)
+        )
+        return session.exec(statement).first()
+
+
 def create_user(u: UserCreate) -> int:
     with get_session() as session:
         db_user = User.model_validate(u)
+        if u.password:
+            password_hash, password_salt = hash_password(u.password)
+            db_user.password_hash = password_hash
+            db_user.password_salt = password_salt
         session.add(db_user)
         try:
             session.commit()
@@ -202,3 +228,18 @@ def create_user(u: UserCreate) -> int:
             )
         session.refresh(db_user)
         return db_user.id
+
+
+def assign_user_to_project(user_id: int, project_id: int) -> None:
+    with get_session() as session:
+        existing = session.exec(
+            select(UserProject).where(
+                UserProject.user_id == user_id,
+                UserProject.project_id == project_id,
+            )
+        ).first()
+        if existing:
+            return
+        assignment = UserProject(user_id=user_id, project_id=project_id)
+        session.add(assignment)
+        session.commit()

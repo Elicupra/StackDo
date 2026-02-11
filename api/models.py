@@ -77,3 +77,18 @@ class UserCreate(BaseModel):
     edad: Optional[int] = None
     correo_electronico: Optional[str] = Field(default=None, max_length=255)
     rol: Optional[str] = Field(default=None, max_length=255)
+    password: Optional[str] = Field(default=None, min_length=6)
+
+
+class LoginRequest(BaseModel):
+    identifier: str = Field(..., min_length=3, max_length=255)
+    password: str = Field(..., min_length=6, max_length=255)
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserProjectAssign(BaseModel):
+    user_id: int

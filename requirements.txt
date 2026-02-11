@@ -1,0 +1,10 @@
+fastapi==0.100.0
+uvicorn==0.24.0
+sqlmodel==0.0.14
+python-dotenv==1.0.0
+psycopg2-binary==2.9.9
+
+# Dashboard Streamlit (opcional)
+streamlit==1.32.0
+plotly==5.18.0
+pandas==2.1.0

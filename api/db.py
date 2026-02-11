@@ -1,11 +1,13 @@
 import os
 import dotenv
+import hashlib
+import secrets
 from contextlib import contextmanager
 from typing import Generator, Optional
 from datetime import date
 from urllib.parse import quote_plus
 from sqlmodel import SQLModel, Field, create_engine, Session, select
-from sqlalchemy import text
+from sqlalchemy import text, UniqueConstraint
 
 # CARGA DE VARIABLES DE ENTORNO
 file_env = os.path.join(os.path.dirname(__file__), os.path.pardir, '.env')
@@ -18,6 +20,12 @@ DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 DB_NAME = os.getenv("DB_NAME")
 DB_SCHEMA = os.getenv("DB_SCHEMA") or os.getenv("SCHEMA")
+ADMIN_SEED_ENABLED = os.getenv("ADMIN_SEED_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
+ADMIN_ID_USUARIO = os.getenv("ADMIN_ID_USUARIO", "admin")
+ADMIN_NOMBRE = os.getenv("ADMIN_NOMBRE", "Administrador")
+ADMIN_APELLIDO = os.getenv("ADMIN_APELLIDO", "General")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@stackdo.local")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 # URL DE LA BASE DE DATOS POSTGRES
 # quote_plus para escapar caracteres especiales en usuario y contraseña
@@ -55,6 +63,26 @@ class User(SQLModel, table=True):
     edad: Optional[int] = None
     correo_electronico: Optional[str] = Field(default=None, max_length=255)
     rol: Optional[str] = Field(default=None, max_length=255)
+    password_hash: Optional[str] = Field(default=None, max_length=255)
+    password_salt: Optional[str] = Field(default=None, max_length=255)
+
+class UserProject(SQLModel, table=True):
+    __tablename__ = "user_projects"
+    if DB_SCHEMA:
+        __table_args__ = (
+            UniqueConstraint("user_id", "project_id", name="uq_user_project"),
+            {"schema": DB_SCHEMA},
+        )
+    else:
+        __table_args__ = (UniqueConstraint("user_id", "project_id", name="uq_user_project"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(
+        foreign_key=f"{DB_SCHEMA}.usuarios.id" if DB_SCHEMA else "usuarios.id",
+    )
+    project_id: int = Field(
+        foreign_key=f"{DB_SCHEMA}.projects.id" if DB_SCHEMA else "projects.id",
+    )
 
 class Tarea(SQLModel, table=True):
     __tablename__ = "tareas"
@@ -106,6 +134,7 @@ def init_db():
 
     # Migración mínima: asegurar que active sea boolean para evitar casts inválidos
     table_name = f"{DB_SCHEMA}.tareas" if DB_SCHEMA else "tareas"
+    users_table = f"{DB_SCHEMA}.usuarios" if DB_SCHEMA else "usuarios"
     with engine.begin() as conn:
         # Quitar default antes del cambio de tipo y restaurarlo despues
         conn.execute(text(f"ALTER TABLE {table_name} ALTER COLUMN active DROP DEFAULT"))
@@ -129,3 +158,37 @@ def init_db():
                 "ADD COLUMN IF NOT EXISTS comentario varchar(1000)"
             )
         )
+
+    # Asegurar columnas de password para usuarios
+    with engine.begin() as conn:
+        conn.execute(text(f"ALTER TABLE {users_table} ADD COLUMN IF NOT EXISTS password_hash varchar(255)"))
+        conn.execute(text(f"ALTER TABLE {users_table} ADD COLUMN IF NOT EXISTS password_salt varchar(255)"))
+
+    if not ADMIN_SEED_ENABLED:
+        return
+
+    # Seed de SuperAdmin si no existe (no modifica usuarios existentes)
+    with Session(engine) as session:
+        statement = select(User).where(
+            (User.id_usuario == ADMIN_ID_USUARIO) | (User.correo_electronico == ADMIN_EMAIL)
+        )
+        existing = session.exec(statement).first()
+        if existing:
+            return
+
+        salt = secrets.token_bytes(16)
+        digest = hashlib.pbkdf2_hmac("sha256", ADMIN_PASSWORD.encode("utf-8"), salt, 100_000)
+        admin_user = User(
+            id_usuario=ADMIN_ID_USUARIO,
+            nombre=ADMIN_NOMBRE,
+            primer_apellido=ADMIN_APELLIDO,
+            segundo_apellido=None,
+            sexo=None,
+            edad=None,
+            correo_electronico=ADMIN_EMAIL,
+            rol="SuperAdmin",
+            password_hash=digest.hex(),
+            password_salt=salt.hex(),
+        )
+        session.add(admin_user)
+        session.commit()

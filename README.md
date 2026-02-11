@@ -56,8 +56,9 @@ python -m venv .venv
 source .venv/bin/activate
 
 # Instalar dependencias backend
-pip install fastapi uvicorn sqlmodel python-dotenv psycopg2-binary
-
+pip install fastapi uvicorn sqlmodel python-dotenv psycopg2-binary python-jose
+# Instalar dependencias para Dashboard Streamlit (opcional)
+pip install streamlit plotly pandas
 # Dependencias frontend (tests)
 npm install
 ```
@@ -82,6 +83,56 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Abre: http://localhost:8000
+
+### 6) Dashboard de Estadísticas con Streamlit (Opcional)
+
+Para visualizar estadísticas interactivas por proyecto con gráficos:
+
+```bash
+streamlit run streamlit_dashboard.py
+```
+
+Abre: http://localhost:8501
+
+**Características del Dashboard:**
+- ✅ Selector de proyectos
+- ✅ Métricas resumen (total, completadas, en progreso, pendientes)
+- ✅ Gráfico de barras: Tareas por estado (Pendiente, En progreso, Completada)
+- ✅ Gráfico de pastel: Distribución por prioridad (⭐ a ⭐⭐⭐⭐⭐)
+- ✅ Gráfico de línea: Timeline de creación (últimos 7 días)
+- ✅ Tabla de tareas con filtros y detalles
+- ✅ Interfaz responsive y temas claros
+
+---
+
+## Autorizacion (roles)
+
+La app usa el campo `rol` de `usuarios` para controlar permisos:
+
+- **SuperAdmin**: control total de proyectos y tareas, exportacion y dashboard.
+- **AdminProyecto**: crea/edita su proyecto, gestiona tareas, exporta y ve dashboard solo de su proyecto.
+- **CoordinadorProyecto**: gestiona tareas y dashboard solo de su proyecto, sin crear proyectos.
+- **Usuario**: gestiona tareas solo en su proyecto, sin exportacion ni dashboard.
+
+Asignacion de proyectos por usuario: tabla `user_projects` (user_id, project_id).
+
+### Activar autenticacion JWT
+
+Por defecto, la autenticacion esta deshabilitada y la app usa el header `X-User-Id`.
+Para activar JWT:
+
+1. En `.env` establece `AUTH_ENABLED=true` y configura `JWT_SECRET`.
+2. Crea usuarios con password (campo `password` en POST `/users`).
+3. Usa POST `/auth/login` con `identifier` (email o id_usuario) y `password` para obtener el token.
+4. Envia `Authorization: Bearer <token>` en cada request.
+
+### Usuario administrador de prueba
+
+Si `ADMIN_SEED_ENABLED=true`, en el arranque se crea un usuario **SuperAdmin** solo si no existe:
+
+- `ADMIN_ID_USUARIO=admin`
+- `ADMIN_EMAIL=admin@stackdo.local`
+- `ADMIN_PASSWORD=admin123`
 
 ---
 
@@ -126,6 +177,13 @@ python/
 | DELETE | /tasks/{id} | Eliminar (soft-delete) |
 | GET | /tasks/export | Export JSON (filtro project_id opcional) |
 
+### Autenticacion
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| POST | /auth/login | Login (JWT) |
+| GET | /me | Usuario actual |
+
 Payload POST/PUT:
 ```json
 {
@@ -152,6 +210,7 @@ Reglas:
 | GET | /projects | Listar proyectos |
 | GET | /projects/{id} | Detalle proyecto |
 | POST | /projects | Crear proyecto |
+| POST | /projects/{id}/users | Asignar usuario a proyecto |
 
 ### Usuarios
 
@@ -196,6 +255,15 @@ sexo                CHAR(1) NULL
 edad                INT NULL
 correo_electronico  VARCHAR(255) NULL
 rol                 VARCHAR(255) NULL
+password_hash       VARCHAR(255) NULL
+password_salt       VARCHAR(255) NULL
+```
+
+### Tabla user_projects
+```sql
+id          INT PRIMARY KEY
+user_id     INT FK -> usuarios.id
+project_id  INT FK -> projects.id
 ```
 
 ### Tabla tareas
@@ -263,7 +331,7 @@ localStorage.removeItem('viewMode');
 - Comentarios en tareas
 - Asignación de tareas a usuarios
 - Temas (dark mode / light mode)
-- Exportar tareas a CSV
+- Exportar tareas a CSV (descarga)
 - Estadísticas y gráficos (conteos básicos)
 - Gestion de proyectos con logo y color personalizado
 
@@ -274,6 +342,8 @@ localStorage.removeItem('viewMode');
 - Notificaciones por email
 - Ordenamiento personalizable
 - Recurrencia de tareas
+- Vista calendario
+- Vista backend roll IT para gestionar Logs de problemas y errores
 
 ---
 
