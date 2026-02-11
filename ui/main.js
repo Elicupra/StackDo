@@ -16,7 +16,6 @@ let currentFilters = {
 let allTasks = [];
 let lastFilteredTasks = [];
 let filterTimeout;
-let isSearchVisible = false;
 
 // ==================== INICIALIZACIÓN ====================
 
@@ -432,20 +431,8 @@ document.getElementById('filterDateTo').addEventListener('change', (e) => {
     applyFilters();
 });
 
-document.getElementById('toggleSearchBtn').addEventListener('click', () => {
-    isSearchVisible = !isSearchVisible;
-    const container = document.getElementById('searchFieldContainer');
-    container.classList.toggle('d-none', !isSearchVisible);
-    document.getElementById('toggleSearchBtn').classList.toggle('active', isSearchVisible);
-    if (isSearchVisible) {
-        document.getElementById('searchInput').focus();
-        return;
-    }
-    if (currentFilters.search) {
-        currentFilters.search = '';
-        document.getElementById('searchInput').value = '';
-        applyFilters();
-    }
+document.getElementById('searchDropdownBtn').addEventListener('click', () => {
+    document.getElementById('searchInput').focus();
 });
 
 document.getElementById('resetFiltersBtn').addEventListener('click', () => {
@@ -473,29 +460,49 @@ function resetFilters() {
 // ==================== EXPORTAR ====================
 
 document.getElementById('exportJsonBtn').addEventListener('click', async () => {
-    if (!lastFilteredTasks.length) {
+    const tasks = await fetchExportTasks();
+    if (!tasks.length) {
         showToast('No hay tareas para exportar', 'warning');
         return;
     }
-    const payload = JSON.stringify(lastFilteredTasks, null, 2);
+    const payload = JSON.stringify(tasks, null, 2);
     try {
         await copyToClipboard(payload);
         showToast('JSON copiado al portapapeles', 'success');
     } catch (e) {
+        console.error('Error copiando JSON:', e);
         showToast('No se pudo copiar el JSON', 'danger');
     }
 });
 
 document.getElementById('exportCsvBtn').addEventListener('click', () => {
-    if (!lastFilteredTasks.length) {
+    exportCsv();
+});
+
+async function fetchExportTasks() {
+    const query = currentProjectId ? `?project_id=${currentProjectId}` : '';
+    try {
+        const res = await fetch(`/tasks/export${query}`);
+        if (!res.ok) throw new Error('No se pudieron exportar tareas');
+        return await res.json();
+    } catch (e) {
+        console.error('Error exportando tareas:', e);
+        showToast('Error al exportar tareas', 'danger');
+        return [];
+    }
+}
+
+async function exportCsv() {
+    const tasks = await fetchExportTasks();
+    if (!tasks.length) {
         showToast('No hay tareas para exportar', 'warning');
         return;
     }
-    const csv = buildCsv(lastFilteredTasks);
+    const csv = buildCsv(tasks);
     const fileName = `stackdo_tareas_${getTodayStamp()}.csv`;
     downloadFile(csv, fileName, 'text/csv;charset=utf-8');
     showToast('CSV generado', 'success');
-});
+}
 
 async function copyToClipboard(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -519,11 +526,13 @@ function buildCsv(tasks) {
         'id',
         'titulo',
         'descripcion',
+        'comentario',
         'estado',
         'prioridad',
         'fecha_vencimiento',
         'fecha_creacion',
         'active',
+        'user_id',
         'project_id'
     ];
     const rows = tasks.map(t => headers.map(h => csvEscape(t[h])));
@@ -575,16 +584,43 @@ document.getElementById('openProjectPickerBtn').addEventListener('click', () => 
     showProjectSelectionModal(false);
 });
 
+function setProjectSelectMode(mode) {
+    const projectSelect = document.getElementById('taskProjectSelect');
+    const projectInfo = document.getElementById('taskProjectInfo');
+
+    if (mode === 'create') {
+        projectSelect.classList.add('d-none');
+        projectSelect.required = false;
+        projectInfo.classList.remove('d-none');
+        const activeName = document.getElementById('currentProjectName').textContent;
+        projectInfo.textContent = `Proyecto activo: ${activeName}`;
+        projectSelect.value = currentProjectId || '';
+        return;
+    }
+
+    projectSelect.classList.remove('d-none');
+    projectSelect.required = true;
+    projectInfo.classList.add('d-none');
+}
+
 // ==================== CREAR TAREA ====================
 
-document.getElementById('openCreateBtn').addEventListener('click', () => {
-    const userSelect = document.getElementById('taskUserSelect');
-    if (userSelect.options.length <= 1) {
+document.getElementById('openCreateBtn').addEventListener('click', async () => {
+    const hasUsers = await loadUsers();
+    if (!hasUsers) {
         showToast('No hay usuarios disponibles. Crea uno primero.', 'warning');
     }
+
+    if (!currentProjectId) {
+        showToast('Selecciona un proyecto activo antes de crear tareas', 'warning');
+        return;
+    }
+
     resetTaskForm();
+    setProjectSelectMode('create');
     document.getElementById('taskModalLabel').textContent = 'Crear tarea';
     document.getElementById('taskSaveBtn').textContent = 'Guardar';
+    document.getElementById('taskProjectSelect').value = currentProjectId;
     const modal = new bootstrap.Modal(document.getElementById('taskModal'));
     modal.show();
 });
@@ -599,8 +635,10 @@ document.getElementById('taskSaveBtn').addEventListener('click', async () => {
         showToast('El título es obligatorio', 'warning');
         return;
     }
-    
-    const projectId = document.getElementById('taskProjectSelect').value;
+
+    const projectId = editId
+        ? document.getElementById('taskProjectSelect').value
+        : currentProjectId;
     if (!projectId) {
         showToast('Debes seleccionar un proyecto', 'warning');
         return;
@@ -612,6 +650,7 @@ document.getElementById('taskSaveBtn').addEventListener('click', async () => {
         return;
     }
 
+    const commentInput = document.getElementById('comment').value.trim();
     const payload = {
         titulo: document.getElementById('title').value.trim(),
         descripcion: document.getElementById('desc').value.trim() || null,
@@ -619,7 +658,8 @@ document.getElementById('taskSaveBtn').addEventListener('click', async () => {
         prioridad: parseInt(document.getElementById('prio').value) || 1,
         fecha_vencimiento: document.getElementById('due').value || null,
         project_id: parseInt(projectId),
-        user_id: parseInt(userId)
+        user_id: parseInt(userId),
+        comentario: commentInput.length ? commentInput : null
     };
     
     const method = editId ? 'PUT' : 'POST';
@@ -652,6 +692,7 @@ document.getElementById('taskSaveBtn').addEventListener('click', async () => {
 
 async function editTask(id) {
     try {
+        await loadUsers();
         const res = await fetch(`${API}/${id}`);
         if (!res.ok) throw new Error('Tarea no encontrada');
         
@@ -664,8 +705,10 @@ async function editTask(id) {
         document.getElementById('due').value = t.fecha_vencimiento?.slice(0, 10) || '';
         document.getElementById('taskProjectSelect').value = t.project_id || '';
         document.getElementById('taskUserSelect').value = t.user_id || '';
+        document.getElementById('comment').value = t.comentario || '';
         
         editId = id;
+        setProjectSelectMode('edit');
         document.getElementById('taskModalLabel').textContent = 'Editar tarea';
         document.getElementById('taskSaveBtn').textContent = 'Actualizar';
         
@@ -707,12 +750,16 @@ async function openDetail(id) {
         const statusBadge = getStatusBadge(t.estado);
         const priorityStars = getPriorityStars(t.prioridad);
         const orphanWarning = !t.project_id ? '<div class="alert alert-warning small mb-2"><i class="fas fa-exclamation-circle"></i> Esta tarea no tiene proyecto asignado</div>' : '';
+        const comentario = t.comentario ? t.comentario : '<em>Sin comentario</em>';
         
         const body = document.getElementById('taskDetailBody');
         body.innerHTML = `
             <h6 class="mb-3">${t.titulo}</h6>
             ${orphanWarning}
             <p class="text-muted">${t.descripcion || '<em>Sin descripción</em>'}</p>
+            <div class="mb-3">
+                <small class="text-muted">Comentario:</small><br>${comentario}
+            </div>
             <div class="row g-2 mb-3">
                 <div class="col-6">
                     <small class="text-muted">Estado:</small><br>${statusBadge}
@@ -758,6 +805,7 @@ document.getElementById('detailDeleteBtn').addEventListener('click', async () =>
 function resetTaskForm() {
     document.getElementById('taskForm').reset();
     document.getElementById('prio').value = '1';
+    document.getElementById('comment').value = '';
     editId = null;
 }
 
@@ -826,6 +874,7 @@ document.getElementById('projectFormBtn').addEventListener('click', async () => 
             loadTasks();
         }
     } catch (e) {
+        console.error('Error creando usuario:', e);
         showToast(e.message, 'danger');
     }
 });
@@ -879,8 +928,15 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
         });
 
         if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.detail || 'Error al crear usuario');
+            let errorMessage = 'Error al crear usuario';
+            try {
+                const error = await res.json();
+                errorMessage = error.detail || errorMessage;
+            } catch (parseError) {
+                const text = await res.text();
+                if (text) errorMessage = text;
+            }
+            throw new Error(errorMessage);
         }
 
         showToast('Usuario creado', 'success');

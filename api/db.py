@@ -66,6 +66,7 @@ class Tarea(SQLModel, table=True):
     prioridad: int
     fecha_creacion: date = Field(default_factory=date.today)
     fecha_vencimiento: Optional[date] = None
+    comentario: Optional[str] = Field(default=None, max_length=1000)
     active: bool = Field(default=True)
     user_id: Optional[int] = Field(
         default=None,
@@ -111,3 +112,12 @@ def init_db():
     # Asegurar columna user_id para asignacion de tareas
     with engine.begin() as conn:
         conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS user_id int4"))
+
+    # Asegurar columna comentario para notas de tarea
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                f"ALTER TABLE {table_name} "
+                "ADD COLUMN IF NOT EXISTS comentario varchar(1000)"
+            )
+        )

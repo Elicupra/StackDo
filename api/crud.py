@@ -1,6 +1,7 @@
 # api/crud.py
 from typing import List, Optional
 from sqlmodel import select
+from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 from .db import get_session, Tarea, Project, User
 from .models import TaskCreate, TaskUpdate, TaskOut, ProjectCreate, ProjectOut, UserOut, UserCreate
@@ -10,6 +11,12 @@ from .models import TaskCreate, TaskUpdate, TaskOut, ProjectCreate, ProjectOut, 
 def create_task(t: TaskCreate) -> int:
     """Crea una tarea y devuelve su ID. Valida proyecto y usuario."""
     with get_session() as session:
+        if t.project_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Proyecto activo requerido"
+            )
+
         # Si hay project_id, verificar que el proyecto exista
         if t.project_id is not None:
             project = session.get(Project, t.project_id)
@@ -38,6 +45,14 @@ def create_task(t: TaskCreate) -> int:
         
         # Convertimos el esquema Pydantic a Modelo SQLModel
         task_data = t.model_dump()
+        if task_data.get("comentario") is not None:
+            comentario = task_data["comentario"].strip()
+            if not comentario:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El comentario no puede estar vacio"
+                )
+            task_data["comentario"] = comentario
         task_data["user_id"] = user_id
         db_task = Tarea.model_validate(task_data)
         session.add(db_task)
@@ -90,6 +105,15 @@ def update_task(id: int, t: TaskUpdate) -> bool:
         task_data = t.model_dump(exclude_unset=True)
         if not task_data:
             return False # Nada que actualizar
+
+        if "comentario" in task_data and task_data["comentario"] is not None:
+            comentario = task_data["comentario"].strip()
+            if not comentario:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El comentario no puede estar vacio"
+                )
+            task_data["comentario"] = comentario
             
         if "user_id" in task_data and task_data["user_id"] is not None:
             user = session.get(User, task_data["user_id"])
@@ -97,6 +121,14 @@ def update_task(id: int, t: TaskUpdate) -> bool:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Usuario no encontrado"
+                )
+
+        if "project_id" in task_data and task_data["project_id"] is not None:
+            project = session.get(Project, task_data["project_id"])
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Proyecto no encontrado"
                 )
 
         for key, value in task_data.items():
@@ -142,6 +174,13 @@ def create_user(u: UserCreate) -> int:
     with get_session() as session:
         db_user = User.model_validate(u)
         session.add(db_user)
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se pudo crear el usuario (datos duplicados o invalidos)"
+            )
         session.refresh(db_user)
         return db_user.id

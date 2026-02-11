@@ -59,6 +59,11 @@ def api_list_tasks(project_id: Optional[int] = None):
     return list_active_tasks(project_id=project_id)
 
 
+@app.get("/tasks/export", response_model=list[TaskOut])
+def api_export_tasks(project_id: Optional[int] = None):
+    return list_active_tasks(project_id=project_id)
+
+
 # ---------------- Projects endpoints ----------------
 @app.post("/projects", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
 def api_create_project(p: ProjectCreate) -> ProjectOut:

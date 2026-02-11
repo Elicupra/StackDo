@@ -10,6 +10,7 @@ class TaskBase(BaseModel):
     estado: str = Field(..., pattern=r'^(pendiente|en_progreso|completada)$')
     prioridad: int = Field(..., ge=1, le=5)
     fecha_vencimiento: Optional[date] = None
+    comentario: Optional[str] = Field(default=None, max_length=1000)
 
 class TaskCreate(TaskBase):
     project_id: int | None = None
@@ -23,12 +24,14 @@ class TaskUpdate(BaseModel):
     fecha_vencimiento: Optional[date] = None
     project_id: Optional[int] = None
     user_id: Optional[int] = None
+    comentario: Optional[str] = Field(default=None, max_length=1000)
 
 class TaskOut(TaskBase):
     id: int
     active: bool
     project_id: int | None = None
     user_id: int | None = None
+    fecha_creacion: date
 
 
 class ProjectCreate(BaseModel):

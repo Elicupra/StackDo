@@ -122,19 +122,19 @@
         </div>
     </div>
 
-    <!-- ========== BARRA DE FILTROS ====================  -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="row g-2 align-items-end">
-                
-                <!-- Búsqueda por nombre -->
-                <div id="searchFieldContainer" class="col-12 col-md-4 d-none">
-                    <label class="form-label small fw-bold">Buscar</label>
+    <!-- ========== FILTROS (DESPLEGABLE) ====================  -->
+    <div class="d-flex justify-content-end mb-4">
+        <div class="dropdown">
+            <button id="searchDropdownBtn" class="btn btn-outline-primary btn-cta dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-search"></i> Buscar
+            </button>
+            <div class="dropdown-menu p-3 filters-dropdown">
+                <div class="mb-2">
+                    <label class="form-label small fw-bold">Buscar por nombre</label>
                     <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Nombre o descripción...">
                 </div>
 
-                <!-- Filtro por estado -->
-                <div class="col-12 col-sm-6 col-md-3">
+                <div class="mb-2">
                     <label class="form-label small fw-bold">Estado</label>
                     <select id="filterStatus" class="form-select form-select-sm">
                         <option value="">Todos</option>
@@ -144,8 +144,7 @@
                     </select>
                 </div>
 
-                <!-- Filtro por prioridad -->
-                <div class="col-12 col-sm-6 col-md-2">
+                <div class="mb-2">
                     <label class="form-label small fw-bold">Prioridad</label>
                     <select id="filterPriority" class="form-select form-select-sm">
                         <option value="">Todas</option>
@@ -157,26 +156,19 @@
                     </select>
                 </div>
 
-                <!-- Filtro de fechas -->
-                <div class="col-6 col-md-3">
+                <div class="mb-2">
                     <label class="form-label small fw-bold">Desde</label>
                     <input type="date" id="filterDateFrom" class="form-control form-control-sm">
                 </div>
 
-                <div class="col-6 col-md-3">
+                <div class="mb-3">
                     <label class="form-label small fw-bold">Hasta</label>
                     <input type="date" id="filterDateTo" class="form-control form-control-sm">
                 </div>
 
-                <!-- Reset -->
-                <div class="col-auto ms-auto d-flex gap-2">
-                    <button id="toggleSearchBtn" class="btn btn-sm btn-outline-primary btn-cta" type="button">
-                        <i class="fas fa-search"></i> Buscar
-                    </button>
-                    <button id="resetFiltersBtn" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-redo"></i> Reset
-                    </button>
-                </div>
+                <button id="resetFiltersBtn" class="btn btn-sm btn-outline-secondary w-100" type="button">
+                    <i class="fas fa-redo"></i> Reset filtros
+                </button>
             </div>
         </div>
     </div>
@@ -287,6 +279,7 @@
                             <select id="taskProjectSelect" class="form-select" required>
                                 <option value="">Seleccionar proyecto...</option>
                             </select>
+                            <div id="taskProjectInfo" class="form-text d-none"></div>
                         </div>
 
                         <div class="col-md-6">
@@ -294,6 +287,11 @@
                             <select id="taskUserSelect" class="form-select" required>
                                 <option value="">Seleccionar usuario...</option>
                             </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Comentario</label>
+                            <textarea id="comment" class="form-control" placeholder="Comentario de la tarea..." rows="3" maxlength="1000"></textarea>
                         </div>
                     </form>
                 </div>
