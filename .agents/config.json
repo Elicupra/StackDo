@@ -1,0 +1,30 @@
+{
+  "project": {
+    "name": "StackDo",
+    "description": "Aplicación fullstack de gestión de tareas con arquitectura refactorizada",
+    "type": "fullstack-webapp",
+    "skills_local_path": ".agents/skills"
+  },
+  "skills": [
+    {
+      "name": "systematic-debugging",
+      "path": ".agents/skills/systematic-debugging",
+      "enabled": true,
+      "description": "Metodología estructurada para debugging y resolución sistemática de problemas"
+    },
+    {
+      "name": "python-fastapi-development",
+      "path": ".agents/skills/python-fastapi-development",
+      "enabled": true,
+      "description": "Workflow para desarrollo de backends Python/FastAPI con patrones async"
+    }
+  ],
+  "agent": {
+    "mode": "build",
+    "auto_load_skills": true,
+    "skills_priority": [
+      "systematic-debugging",
+      "python-fastapi-development"
+    ]
+  }
+}
