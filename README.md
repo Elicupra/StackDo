@@ -1,18 +1,43 @@
 # StackDo - Gestor de Tareas
 
-Sistema MVP de gestion de tareas por proyectos, construido con FastAPI (backend) y Bootstrap 5 (frontend).
+Sistema fullstack de gestion de tareas por proyectos, construido con:
+- **Backend**: FastAPI (async, SQLModel, JWT auth)
+- **Frontend**: Vanilla JS + Bootstrap 5 + Modular Architecture
+- **Architecture**: Refactorized with StateManager, ModalManager, FormValidator, and Design Tokens
 
-## Caracteristicas
+## ✨ Caracteristicas
 
-- Gestion de proyectos: crear, seleccionar y cambiar proyecto activo.
-- Gestion de tareas: crear, editar, eliminar (soft-delete).
-- Asignacion de usuario obligatoria en tareas.
-- Comentarios en tareas (hasta 1000 caracteres).
-- Vistas tabla y cards (responsive 1/2/3 columnas).
-- Filtros en menu desplegable (busqueda, estado, prioridad, fechas).
-- Exportacion: JSON (portapapeles) y CSV (descarga desde navegador) usando endpoint.
-- Persistencia: proyecto activo y vista guardados en localStorage.
-- Notificaciones toast.
+### Gestion de Tareas y Proyectos
+- ✅ Gestion de proyectos: crear, seleccionar y cambiar proyecto activo
+- ✅ Gestion de tareas: crear, editar, eliminar (soft-delete)
+- ✅ Asignacion de usuario obligatoria en tareas
+- ✅ Comentarios en tareas (hasta 1000 caracteres)
+- ✅ Vistas tabla y cards (responsive 1/2/3 columnas)
+- ✅ Filtros en menu desplegable (busqueda, estado, prioridad, fechas)
+
+### Exportacion y Persistencia
+- ✅ Exportacion: JSON (portapapeles) y CSV (descarga desde navegador)
+- ✅ Persistencia: proyecto activo y vista guardados en localStorage
+- ✅ Notificaciones toast para feedback del usuario
+
+### Frontend Refactorizado (Fase 1 & 2)
+- ✅ **StateManager**: Gestión centralizada de estado global con watchers y eventos
+- ✅ **ModalManager**: Control de modales Bootstrap 5 sin backdrops huérfanos
+- ✅ **FormValidator**: Validación en tiempo real con feedback visual Bootstrap-native
+- ✅ **Design Tokens**: 150+ tokens CSS para colores, tipografía, espacios, dark mode
+- ✅ **Test Suite**: 50+ tests automatizados pre-refactorización
+- ✅ **Modular Architecture**: Código organizado en módulos core reutilizables
+
+### Autenticacion y Autorizacion
+- ✅ JWT Authentication (configurable)
+- ✅ Roles: SuperAdmin, ITAdmin, AdminProyecto, CoordinadorProyecto, Usuario
+- ✅ Consola IT para administradores (usuarios, proyectos, logs, backups)
+
+### Consola IT
+- ✅ Gestion de usuarios (editar, reset password, borrar)
+- ✅ Gestion de proyectos (borrar)
+- ✅ Logs de aplicacion
+- ✅ Backups (JSON/CSV)
 
 ---
 
@@ -151,25 +176,151 @@ Funciones:
 
 ```
 python/
-├── api/
+├── .agents/                                 # SKILLS locales del proyecto
+│   ├── config.json                         # Configuracion de SKILLS
+│   └── skills/
+│       ├── systematic-debugging/           # Metodologia de debugging
+│       │   ├── SKILL.md
+│       │   ├── root-cause-tracing.md
+│       │   ├── condition-based-waiting.md
+│       │   └── ...otros archivos
+│       └── python-fastapi-development/     # Workflow FastAPI
+│           └── SKILL.md
+│
+├── api/                                     # Backend FastAPI
 │   ├── __init__.py
-│   ├── main.py              # FastAPI app, rutas
-│   ├── models.py            # Esquemas Pydantic
-│   ├── db.py                # Conexion BD, modelos SQLModel
-│   ├── crud.py              # Operaciones BD
+│   ├── main.py                             # FastAPI app, rutas
+│   ├── models.py                           # Esquemas Pydantic
+│   ├── db.py                               # Conexion BD, modelos SQLModel
+│   ├── crud.py                             # Operaciones BD
+│   ├── auth.py                             # Autenticacion JWT
 │   └── __pycache__/
-├── ui/
-│   ├── index.html           # Interfaz principal
-│   ├── main.js              # Logica frontend
-│   ├── styles.css           # Estilos
+│
+├── ui/                                      # Frontend
+│   ├── index.html                          # Interfaz principal
+│   ├── main.js                             # Logica frontend (refactorizado)
+│   ├── styles.css                          # Estilos personalizados
+│   │
+│   ├── admin/                              # Consola IT
+│   │   ├── index.html
+│   │   ├── admin.js
+│   │   └── admin.css
+│   │
+│   ├── css/
+│   │   └── design-tokens.css               # 150+ tokens de diseño (NEW)
+│   │
+│   ├── js/core/                            # Modulos core reutilizables (NEW)
+│   │   ├── stateManager.js                 # Gestor de estado global
+│   │   ├── modalManager.js                 # Gestor de modales Bootstrap
+│   │   └── formValidator.js                # Validador de formularios
+│   │
+│   └── tests/                              # Suite de tests (NEW)
+│       ├── index.html
+│       └── pre-refactor-tests.js           # 50+ tests automatizados
+│
 ├── scripts/
-│   └── init_db.py           # Script inicial (opcional)
-├── tests/                   # Tests backend
-├── ui/__tests__/            # Tests frontend
-├── .env.example             # Plantilla variables entorno
-├── .env                     # Archivo real (NO subir a git)
-├── README.md                # Esta documentacion
+│   └── init_db.py                          # Script inicial (opcional)
+│
+├── .agents/                                 # Configuracion de SKILLS (NEW)
+│   ├── config.json
+│   └── skills/
+├── .env.example                            # Plantilla variables entorno
+├── .env                                    # Archivo real (NO subir a git)
+├── .gitignore
+├── README.md                               # Esta documentacion (ACTUALIZADO)
+├── SKILLS_MIGRATION.md                     # Documentacion migracion SKILLS (NEW)
+├── TEST_RESULTS.md                         # Resultados de tests (NEW)
+├── requirements.txt                        # Dependencias Python
+├── validate-structure.js                   # Validador de estructura (NEW)
+├── run-tests.js                            # Ejecutor de tests (NEW)
 └── __pycache__/
+```
+
+---
+
+## 🏗️ Arquitectura Frontend Refactorizada
+
+### Fase 1: Foundation (StateManager, ModalManager, Design Tokens)
+
+**StateManager** (`ui/js/core/stateManager.js`)
+- Gestión centralizada de estado global con watchers y eventos
+- Auto-persistencia en localStorage
+- Debugging: `window.STATE.inspect()`
+
+```javascript
+// Uso
+window.STATE.setState('currentProjectId', 5);
+window.STATE.watch('currentProjectId', (oldVal, newVal) => {
+  console.log(`Project changed: ${oldVal} → ${newVal}`);
+});
+```
+
+**ModalManager** (`ui/js/core/modalManager.js`)
+- Instancia única por modal (evita duplicados)
+- Stack automático de modales
+- Limpieza automática de backdrops huérfanos
+- Modo obligatorio configurable
+
+```javascript
+// Uso
+window.MODALS.show('taskModal');
+window.MODALS.hide('taskModal');
+window.MODALS.setMandatory('projectModal', true);
+```
+
+**Design Tokens** (`ui/css/design-tokens.css`)
+- 150+ CSS custom properties
+- Paleta de colores, tipografía, espacios
+- Dark mode WCAG 2.1 AA compliant
+- Overrides Bootstrap 5 con tokens
+
+```css
+/* Uso */
+color: var(--color-primary);
+background: var(--color-surface-secondary);
+font-size: var(--font-size-lg);
+```
+
+### Fase 2: Form Validation (FormValidator)
+
+**FormValidator** (`ui/js/core/formValidator.js`)
+- Validación en tiempo real con Bootstrap 5 native classes
+- Reglas: required, minLength, maxLength, pattern, custom, match
+- Feedback visual inmediato
+- Focus en primer error
+
+```javascript
+// Uso
+const validator = new FormValidator('taskForm', {
+  title: { required: true, minLength: 3, maxLength: 200 },
+  desc: { maxLength: 255 }
+});
+validator.watchAllFields('blur');
+if (validator.validate()) {
+  // Enviar formulario
+}
+```
+
+### Fase 3-5 (Próximas)
+- Components & Services (TaskComponent, ProjectService)
+- Admin Console Refactoring
+- Final Testing & Optimization
+
+---
+
+## 📊 Test Suite
+
+**Pre-Refactor Tests** (`ui/tests/pre-refactor-tests.js`)
+- 50+ tests automatizados
+- Valida: inicialización, DOM, funciones críticas, modales, formularios
+- Ejecutar: http://localhost:8000/ui/tests/index.html
+
+```bash
+# Validar estructura
+node validate-structure.js
+
+# Ejecutar tests
+npm run test:ui
 ```
 
 ---
@@ -355,46 +506,194 @@ localStorage.removeItem('viewMode');
 ## Estado de caracteristicas
 
 ### Completadas ✅
-- Comentarios en tareas
-- Asignación de tareas a usuarios
-- Temas (dark mode / light mode)
-- Exportar tareas a CSV (descarga)
-- Estadísticas y gráficos (conteos básicos)
-- Gestion de proyectos con logo y color personalizado
-- Consola IT (usuarios, proyectos, logs, backups)
+
+**Core Functionality**
+- ✅ Comentarios en tareas
+- ✅ Asignación de tareas a usuarios
+- ✅ Temas (dark mode / light mode)
+- ✅ Exportar tareas a CSV (descarga) y JSON (portapapeles)
+- ✅ Estadísticas y gráficos (conteos básicos)
+- ✅ Gestion de proyectos con logo y color personalizado
+- ✅ Consola IT (usuarios, proyectos, logs, backups)
+- ✅ Autenticación JWT (configurable)
+- ✅ Autorizacion por roles
+
+**Architecture Refactoring (Fases 1 & 2)**
+- ✅ **Fase 1**: StateManager, ModalManager, Design Tokens (150+ tokens)
+- ✅ **Fase 1**: Test Suite (50+ tests automatizados)
+- ✅ **Fase 2**: FormValidator con validación en tiempo real
+- ✅ **Fase 2**: Integración FormValidator en taskForm y userForm
+- ✅ **Fase 2**: SKILLS migrados a proyecto local
+
+### En Progreso 🔄
+
+**Fases 3-5 de Refactorización**
+- 🔄 **Fase 3**: Components & Services (TaskComponent, ProjectService, UserService)
+- 🔄 **Fase 4**: Refactorizar Admin Console
+- 🔄 **Fase 5**: Testing final y optimización
 
 ### Pendientes ⏳
-- Autenticación y autorización
-- Exportar tareas a PDF
-- Drag & drop para cambiar estado
-- Notificaciones por email
-- Ordenamiento personalizable
-- Recurrencia de tareas
-- Vista calendario
+
+**Funcionalidades Futuras**
+- ⏳ PDF Export: Exportar tareas a PDF con estilos
+- ⏳ Drag & Drop: Cambiar estado de tarea en vista Kanban
+- ⏳ Notificaciones por email
+- ⏳ Ordenamiento personalizable por columna
+- ⏳ Recurrencia de tareas
+- ⏳ Vista calendario
 
 ---
 
-## Mejoras y pendientes (Consola IT)
+## 🚀 Roadmap de Refactorización
 
-- Filtros avanzados de logs (nivel, rango de fechas, texto libre).
-- Retencion y borrado programado de logs.
-- Historial de auditoria para cambios de usuarios/proyectos.
-- Backups incrementales y cifrados.
-- UI para asignacion usuario-proyecto.
-- Export de logs en CSV/JSON.
+```
+Phase 1 ✅ (COMPLETADA)
+├── StateManager (estado centralizado)
+├── ModalManager (control de modales)
+├── Design Tokens (sistema de tokens CSS)
+└── Test Suite (50+ tests)
+
+Phase 2 ✅ (COMPLETADA)
+├── FormValidator (validación en tiempo real)
+├── Integración en taskForm y userForm
+└── SKILLS migrados al proyecto
+
+Phase 3 (EN PLAN)
+├── Components.js (TaskComponent, ProjectComponent, UserComponent)
+├── Services (TaskService, ProjectService, UserService, AuthService)
+└── Tests para nuevos módulos
+
+Phase 4 (EN PLAN)
+├── Refactorizar admin.js con misma arquitectura
+└── Aplicar SKILLS e integraciones
+
+Phase 5 (EN PLAN)
+├── Testing final exhaustivo
+├── Optimización de performance
+└── Documentación completa
+```
 
 ---
 
-## Roadmap futuro
+## 📚 SKILLS del Proyecto
 
-Las siguientes funcionalidades estan en la lista de desarrollo:
+El proyecto incluye SKILLS especializados en `.agents/skills/`:
 
-1. **Autenticación**: Login/registro con roles (admin, usuario).
-2. **PDF Export**: Exportar tareas a PDF con estilos.
-3. **Drag & Drop**: Cambiar estado de tarea arrastrando entre columnas Kanban.
-4. **Email Notifications**: Notificar cambios de tarea a usuarios asignados.
-5. **Ordenamiento**: Permitir ordenar por cualquier columna (titulo, fecha, prioridad).
-6. **Recurrencia**: Crear tareas recurrentes (diaria, semanal, mensual).
+### 1. **systematic-debugging** 🐛
+- **Descripción**: Metodología estructurada para debugging y resolución de problemas
+- **Core Principle**: "NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST"
+- **Ubicación**: `.agents/skills/systematic-debugging/`
+- **Uso**: Cuando encuentres bugs, test failures o comportamiento inesperado
+
+### 2. **python-fastapi-development** 🚀
+- **Descripción**: Workflow para desarrollo de FastAPI con async, SQLAlchemy, Pydantic
+- **Ubicación**: `.agents/skills/python-fastapi-development/`
+- **Uso**: Cuando implementes nuevas APIs o servicios backend
+
+Ver `.agents/skills/README.md` para documentación completa.
+
+---
+
+## 🛠️ Mejoras y Pendientes
+
+### Consola IT (Backend)
+- ⏳ Filtros avanzados de logs (nivel, rango de fechas, texto libre)
+- ⏳ Retencion y borrado programado de logs
+- ⏳ Historial de auditoria para cambios de usuarios/proyectos
+- ⏳ Backups incrementales y cifrados
+- ⏳ UI para asignacion usuario-proyecto
+- ⏳ Export de logs en CSV/JSON
+
+### Frontend Refactorización
+- ⏳ Migrar variables globales a StateManager completamente
+- ⏳ Aplicar FormValidator a todos los formularios (projectForm, etc.)
+- ⏳ Crear Components para reutilizar (TaskRow, TaskCard, StatusBadge)
+- ⏳ Centralizar servicios (TaskService, ProjectService, UserService)
+- ⏳ Implementar request/response interceptors
+- ⏳ Cache en cliente con invalidación inteligente
+
+---
+
+## 🔗 Documentación Adicional
+
+- **SKILLS_MIGRATION.md**: Documentación sobre migracion de SKILLS a proyecto
+- **TEST_RESULTS.md**: Resultados y guía de tests
+- **.agents/skills/README.md**: Documentación de SKILLS disponibles
+- **.agents/config.json**: Configuración de SKILLS del proyecto
+
+---
+
+## 📖 Guia de Desarrollo
+
+### Invocar un SKILL
+```
+skill load systematic-debugging
+skill load python-fastapi-development
+```
+
+### Usar StateManager
+```javascript
+// Leer estado
+const projectId = window.STATE.getState('currentProjectId');
+
+// Escribir estado
+window.STATE.setState('currentProjectId', 5);
+
+// Escuchar cambios
+window.STATE.watch('currentProjectId', (old, newVal) => {
+  console.log(`Cambio: ${old} → ${newVal}`);
+});
+
+// Emitir eventos
+window.STATE.emit('projectChanged', { projectId: 5 });
+window.STATE.on('projectChanged', (data) => { ... });
+```
+
+### Usar FormValidator
+```javascript
+const validator = new FormValidator('myForm', {
+  email: { pattern: 'email' },
+  name: { required: true, minLength: 3 }
+});
+
+validator.watchAllFields('blur');
+
+if (validator.validate()) {
+  const values = validator.getValues();
+  // Enviar
+}
+```
+
+### Usar ModalManager
+```javascript
+// Mostrar modal
+window.MODALS.show('taskModal');
+
+// Ocultarlo
+window.MODALS.hide('taskModal');
+
+// Modo obligatorio (no se puede cerrar)
+window.MODALS.setMandatory('projectModal', true);
+
+// Limpiar backdrops huérfanos
+window.MODALS.cleanupBackdrops();
+```
+
+---
+
+## 🚀 Roadmap Futuro
+
+Las siguientes funcionalidades estan planificadas:
+
+1. **Fase 3**: Components & Services para reutilizar código
+2. **Fase 4**: Refactorizar Admin Console con misma arquitectura
+3. **Fase 5**: Testing final y optimización
+4. **PDF Export**: Exportar tareas a PDF con estilos
+5. **Drag & Drop**: Cambiar estado en vista Kanban
+6. **Email Notifications**: Notificar cambios a usuarios
+7. **Ordenamiento**: Permitir ordenar por cualquier columna
+8. **Recurrencia**: Crear tareas recurrentes (diaria, semanal, mensual)
+9. **Vista Calendario**: Visualización en modo calendario
 
 
 ## Licencia
