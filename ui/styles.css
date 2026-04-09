@@ -443,3 +443,123 @@ a {
 .form-select:focus {
     outline: none;
 }
+
+/* ==================== PRODUCT MODERN (DIRECTION 2) ==================== */
+:root {
+    --primary-color: #0f766e;
+    --success-color: #15803d;
+    --warning-color: #d97706;
+    --danger-color: #b91c1c;
+    --info-color: #0369a1;
+    --app-bg: #f3f6fb;
+    --surface-1: #ffffff;
+    --surface-2: #eef3fb;
+    --text-color: #0f172a;
+    --muted-color: #475569;
+    --border-color: #d7e0ec;
+    --border-radius: 12px;
+    --radius-sm: 10px;
+    --radius-pill: 999px;
+    --shadow-sm: 0 8px 20px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 14px 34px rgba(15, 23, 42, 0.1);
+    --focus-ring: 0 0 0 0.2rem rgba(15, 118, 110, 0.2);
+}
+
+body {
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+    background:
+        radial-gradient(circle at top right, rgba(15, 118, 110, 0.08), transparent 40%),
+        radial-gradient(circle at bottom left, rgba(3, 105, 161, 0.07), transparent 38%),
+        var(--app-bg);
+}
+
+h1, h2, h3, h4, h5, h6,
+.navbar-brand,
+.modal-title,
+.stat-value {
+    font-family: 'Plus Jakarta Sans', 'Manrope', sans-serif;
+}
+
+.navbar.bg-primary {
+    background: linear-gradient(120deg, #0f766e 0%, #0b6b9a 100%) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 8px 26px rgba(15, 23, 42, 0.2) !important;
+}
+
+.project-pill {
+    border-radius: var(--radius-pill);
+    box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.16);
+}
+
+.card,
+.table,
+.modal-content {
+    border-radius: var(--border-radius);
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.table thead {
+    background-color: #edf6f5;
+}
+
+.task-card:hover {
+    box-shadow: var(--shadow-md) !important;
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--primary-color) 75%, #ffffff);
+}
+
+.btn {
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: linear-gradient(120deg, #0f766e 0%, #0b6b9a 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(120deg, #0b655f 0%, #0a5e88 100%);
+}
+
+.btn-outline-primary {
+    border-color: rgba(15, 118, 110, 0.45);
+    color: #0f766e;
+    background-color: rgba(15, 118, 110, 0.04);
+}
+
+.btn-outline-primary:hover {
+    color: #ffffff;
+    background-color: #0f766e;
+}
+
+.form-control,
+.form-select {
+    border-radius: var(--radius-sm);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: color-mix(in srgb, var(--primary-color) 70%, #ffffff);
+    box-shadow: var(--focus-ring);
+}
+
+.stat-pill {
+    border-radius: var(--radius-pill);
+    border: 1px solid #d8e5f2;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+}
+
+.app-footer {
+    background: linear-gradient(140deg, #0e263b 0%, #102a44 45%, #113252 100%);
+}
+
+body[data-theme='dark'] {
+    --app-bg: #0b1118;
+    --surface-1: #111927;
+    --surface-2: #1a2434;
+    --text-color: #e2e8f0;
+    --muted-color: #9fb0c5;
+    --border-color: #2a3850;
+}

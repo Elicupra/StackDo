@@ -15,6 +15,29 @@ let authToken = localStorage.getItem('authToken') || null;
 let authEnabled = false;
 let currentRole = null;
 
+async function readErrorMessage(response, fallbackMessage) {
+    try {
+        const data = await response.json();
+        if (data && typeof data.detail === 'string' && data.detail.trim()) {
+            return data.detail;
+        }
+        if (data && typeof data.message === 'string' && data.message.trim()) {
+            return data.message;
+        }
+    } catch (e) {
+        // no-op
+    }
+
+    try {
+        const text = await response.text();
+        if (text && text.trim()) return text.trim();
+    } catch (e) {
+        // no-op
+    }
+
+    return fallbackMessage;
+}
+
 async function fetchAuthStatus() {
     try {
         const res = await fetch('/auth/status');
@@ -38,6 +61,18 @@ async function fetchMe() {
     const res = await fetch('/me', setAuthHeaders());
     if (!res.ok) return null;
     return res.json();
+}
+
+async function fetchWithSessionGuard(url, init = {}) {
+    const res = await fetch(url, setAuthHeaders(init));
+    if (res.status === 401) {
+        authToken = null;
+        localStorage.removeItem('authToken');
+        showLogin();
+        loginError.textContent = 'Sesion expirada o invalida. Inicia sesion nuevamente.';
+        loginError.classList.remove('hidden');
+    }
+    return res;
 }
 
 function showLogin() {
@@ -143,7 +178,7 @@ async function loadUsers() {
     const container = document.getElementById('usersTable');
     container.innerHTML = '<div class="table-row header"><div>ID</div><div>Nombre</div><div>Apellido</div><div>Rol</div><div>Correo</div><div>Acciones</div></div>';
 
-    const res = await fetch('/admin/users', setAuthHeaders());
+    const res = await fetchWithSessionGuard('/admin/users');
     if (!res.ok) {
         container.innerHTML += '<div class="table-row">Error cargando usuarios</div>';
         return;
@@ -171,13 +206,14 @@ async function loadUsers() {
 
         row.querySelector('[data-action="save"]').addEventListener('click', async () => {
             const payload = collectRow(row);
-            const updateRes = await fetch(`/admin/users/${user.id}`, setAuthHeaders({
+            const updateRes = await fetchWithSessionGuard(`/admin/users/${user.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
-            }));
+            });
             if (!updateRes.ok) {
-                alert('Error al actualizar usuario');
+                const message = await readErrorMessage(updateRes, 'Error al actualizar usuario');
+                alert(message);
                 return;
             }
             await loadUsers();
@@ -187,13 +223,14 @@ async function loadUsers() {
             const temp = generatePassword();
             const ok = confirm(`Resetear password a: ${temp}`);
             if (!ok) return;
-            const resetRes = await fetch(`/admin/users/${user.id}/reset-password`, setAuthHeaders({
+            const resetRes = await fetchWithSessionGuard(`/admin/users/${user.id}/reset-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ password: temp })
-            }));
+            });
             if (!resetRes.ok) {
-                alert('Error al resetear password');
+                const message = await readErrorMessage(resetRes, 'Error al resetear password');
+                alert(message);
                 return;
             }
             alert(`Password temporal: ${temp}`);
@@ -202,9 +239,10 @@ async function loadUsers() {
         row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
             const ok = confirm('Borrar usuario?');
             if (!ok) return;
-            const delRes = await fetch(`/admin/users/${user.id}`, setAuthHeaders({ method: 'DELETE' }));
+            const delRes = await fetchWithSessionGuard(`/admin/users/${user.id}`, { method: 'DELETE' });
             if (!delRes.ok) {
-                alert('Error al borrar usuario');
+                const message = await readErrorMessage(delRes, 'Error al borrar usuario');
+                alert(message);
                 return;
             }
             await loadUsers();
@@ -232,7 +270,7 @@ async function loadProjects() {
     const container = document.getElementById('projectsTable');
     container.innerHTML = '<div class="table-row header"><div>ID</div><div>Nombre</div><div>Descripcion</div><div>Color</div><div>Acciones</div></div>';
 
-    const res = await fetch('/admin/projects', setAuthHeaders());
+    const res = await fetchWithSessionGuard('/admin/projects');
     if (!res.ok) {
         container.innerHTML += '<div class="table-row">Error cargando proyectos</div>';
         return;
@@ -254,9 +292,10 @@ async function loadProjects() {
         row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
             const ok = confirm('Borrar proyecto?');
             if (!ok) return;
-            const delRes = await fetch(`/admin/projects/${project.id}`, setAuthHeaders({ method: 'DELETE' }));
+            const delRes = await fetchWithSessionGuard(`/admin/projects/${project.id}`, { method: 'DELETE' });
             if (!delRes.ok) {
-                alert('No se pudo borrar el proyecto (tareas activas?)');
+                const message = await readErrorMessage(delRes, 'No se pudo borrar el proyecto (tareas activas?)');
+                alert(message);
                 return;
             }
             await loadProjects();
@@ -269,7 +308,7 @@ async function loadLogs() {
     const container = document.getElementById('logsTable');
     container.innerHTML = '<div class="table-row header"><div>Fecha</div><div>Nivel</div><div>Mensaje</div><div>Contexto</div></div>';
 
-    const res = await fetch('/admin/logs?limit=200', setAuthHeaders());
+    const res = await fetchWithSessionGuard('/admin/logs?limit=200');
     if (!res.ok) {
         container.innerHTML += '<div class="table-row">Error cargando logs</div>';
         return;
@@ -292,7 +331,7 @@ async function loadBackups() {
     const container = document.getElementById('backupsTable');
     container.innerHTML = '<div class="table-row header"><div>Archivo</div><div>Tamano</div><div>Acciones</div></div>';
 
-    const res = await fetch('/admin/backups', setAuthHeaders());
+    const res = await fetchWithSessionGuard('/admin/backups');
     if (!res.ok) {
         container.innerHTML += '<div class="table-row">Error cargando backups</div>';
         return;
@@ -313,18 +352,20 @@ async function loadBackups() {
 }
 
 createJsonBackupBtn.addEventListener('click', async () => {
-    const res = await fetch('/admin/backups?kind=json', setAuthHeaders({ method: 'POST' }));
+    const res = await fetchWithSessionGuard('/admin/backups?kind=json', { method: 'POST' });
     if (!res.ok) {
-        alert('Error creando backup');
+        const message = await readErrorMessage(res, 'Error creando backup');
+        alert(message);
         return;
     }
     await loadBackups();
 });
 
 createCsvBackupBtn.addEventListener('click', async () => {
-    const res = await fetch('/admin/backups?kind=csv', setAuthHeaders({ method: 'POST' }));
+    const res = await fetchWithSessionGuard('/admin/backups?kind=csv', { method: 'POST' });
     if (!res.ok) {
-        alert('Error creando backup');
+        const message = await readErrorMessage(res, 'Error creando backup');
+        alert(message);
         return;
     }
     await loadBackups();

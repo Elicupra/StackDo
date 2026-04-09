@@ -27,6 +27,87 @@ let projectEditId = null;
 let projectLogoDataUrl = null;
 let projectLogoChanged = false;
 let authFetchConfigured = false;
+let loadTasksSeq = 0;
+
+// ==================== BOOTSTRAP MODAL HELPERS ====================
+
+function cleanupOrphanBackdrops() {
+    // Elimina backdrops huérfanos que quedan cuando modales no se cierran correctamente
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach((backdrop, index) => {
+        // Mantén el último backdrop (actual), elimina los anteriores
+        if (index < backdrops.length - 1) {
+            backdrop.remove();
+        }
+    });
+}
+
+function getModalInstance(modalId, options = {}) {
+    // Obtiene o crea una instancia de modal sin crear duplicados
+    const modalEl = document.getElementById(modalId);
+    if (!modalEl) return null;
+    
+    // Intenta obtener la instancia existente
+    let modalInstance = bootstrap.Modal.getInstance(modalEl);
+    
+    // Si no existe, crea una nueva con las opciones proporcionadas
+    if (!modalInstance) {
+        // Opciones por defecto
+        const defaultOptions = { backdrop: 'static', keyboard: false };
+        const finalOptions = { ...defaultOptions, ...options };
+        modalInstance = new bootstrap.Modal(modalEl, finalOptions);
+    }
+    
+    return modalInstance;
+}
+
+function safeShowModal(modalId, options = {}) {
+    // Muestra un modal de forma segura, limpiando backdrops previos
+    cleanupOrphanBackdrops();
+    const modalInstance = getModalInstance(modalId, options);
+    if (modalInstance) {
+        modalInstance.show();
+    }
+}
+
+function safeHideModal(modalId) {
+    // Cierra un modal de forma segura
+    const modalEl = document.getElementById(modalId);
+    if (!modalEl) return;
+    
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) {
+        modalInstance.hide();
+    }
+    
+    // Limpia backdrops huérfanos después de cerrar
+    setTimeout(() => {
+        cleanupOrphanBackdrops();
+    }, 100);
+}
+
+async function readErrorMessage(response, fallbackMessage) {
+    try {
+        const data = await response.json();
+        if (data && typeof data.detail === 'string' && data.detail.trim()) {
+            return data.detail;
+        }
+        if (data && typeof data.message === 'string' && data.message.trim()) {
+            return data.message;
+        }
+    } catch (e) {
+        // no-op: fallback to text/plain or default message
+    }
+
+    try {
+        const text = await response.text();
+        if (text && text.trim()) return text.trim();
+    } catch (e) {
+        // no-op
+    }
+
+    return fallbackMessage;
+}
 
 // ==================== INICIALIZACIÓN ====================
 
@@ -47,6 +128,7 @@ async function initApp() {
                     return;
                 }
                 loadTasks();
+                initializeFormValidators();
                 return;
             }
         }
@@ -72,6 +154,7 @@ async function initApp() {
         return;
     }
     loadTasks();
+    initializeFormValidators();
 }
 
 function initTheme() {
@@ -133,14 +216,37 @@ async function fetchCurrentUser() {
 function configureAuthFetch() {
     if (authFetchConfigured) return;
     const originalFetch = window.fetch.bind(window);
-    window.fetch = (input, init = {}) => {
+    window.fetch = async (input, init = {}) => {
         const headers = new Headers(init.headers || {});
         if (authEnabled && authToken) {
             headers.set('Authorization', `Bearer ${authToken}`);
         } else if (!authEnabled && currentUserId) {
             headers.set('X-User-Id', currentUserId);
         }
-        return originalFetch(input, { ...init, headers });
+
+        const response = await originalFetch(input, { ...init, headers });
+        const url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+        const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/status');
+
+        if (authEnabled && response.status === 401 && !isAuthEndpoint) {
+            authToken = null;
+            currentUserId = null;
+            currentUserRole = null;
+            currentProjectId = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUserId');
+            localStorage.removeItem('currentUserRole');
+            localStorage.removeItem('currentProjectId');
+            showLoginView();
+
+            const errorEl = document.getElementById('loginError');
+            if (errorEl) {
+                errorEl.textContent = 'Sesion expirada o invalida. Inicia sesion nuevamente.';
+                errorEl.classList.remove('d-none');
+            }
+        }
+
+        return response;
     };
     authFetchConfigured = true;
 }
@@ -335,18 +441,16 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 // ==================== MODAL DE SELECCIÓN DE PROYECTO ====================
 
 function showUserSelectionModal(forceSelect = false) {
-    const modalEl = document.getElementById('userSelectionModal');
     const closeBtn = document.getElementById('userSelectionCloseBtn');
     if (forceSelect) {
         closeBtn.classList.add('d-none');
     } else {
         closeBtn.classList.remove('d-none');
     }
-    const modal = new bootstrap.Modal(modalEl, {
+    safeShowModal('userSelectionModal', {
         backdrop: forceSelect ? 'static' : true,
         keyboard: !forceSelect
     });
-    modal.show();
 }
 
 document.getElementById('userListContainer').addEventListener('click', async (e) => {
@@ -378,18 +482,16 @@ document.getElementById('openUserPickerBtn').addEventListener('click', () => {
 // ==================== MODAL DE SELECCIÓN DE PROYECTO ====================
 
 function showProjectSelectionModal(forceSelect = false) {
-    const modalEl = document.getElementById('projectSelectionModal');
     const closeBtn = document.getElementById('projectSelectionCloseBtn');
     if (forceSelect) {
         closeBtn.classList.add('d-none');
     } else {
         closeBtn.classList.remove('d-none');
     }
-    const modal = new bootstrap.Modal(modalEl, {
+    safeShowModal('projectSelectionModal', {
         backdrop: forceSelect ? 'static' : true,
         keyboard: !forceSelect
     });
-    modal.show();
 }
 
 document.getElementById('projectListContainer').addEventListener('click', async (e) => {
@@ -480,6 +582,8 @@ async function loadProjects() {
             hasCurrentProject = true;
         }
         if (!hasCurrentProject) {
+            allTasks = [];
+            applyFilters();
             document.getElementById('currentProjectName').textContent = 'Sin proyecto';
             applyProjectBrand(null);
         }
@@ -487,6 +591,8 @@ async function loadProjects() {
         return hasCurrentProject;
     } catch (e) {
         console.error('Error cargando proyectos:', e);
+        allTasks = [];
+        applyFilters();
         showToast('Error al cargar proyectos', 'danger');
         return false;
     }
@@ -565,14 +671,26 @@ async function loadUsers() {
 // ==================== CARGAR TAREAS ====================
 
 async function loadTasks() {
+    const requestSeq = ++loadTasksSeq;
     try {
+        if (!currentProjectId) {
+            allTasks = [];
+            applyFilters();
+            return;
+        }
+
         const url = currentProjectId ? `${API}?project_id=${currentProjectId}` : API;
         const res = await fetch(url);
         if (!res.ok) throw new Error('Error al cargar tareas');
-        allTasks = await res.json();
+        const tasks = await res.json();
+        if (requestSeq !== loadTasksSeq) return;
+        allTasks = tasks;
         applyFilters();
     } catch (e) {
+        if (requestSeq !== loadTasksSeq) return;
         console.error('Error cargando tareas:', e);
+        allTasks = [];
+        applyFilters();
         showToast('Error al cargar tareas', 'danger');
     }
 }
@@ -971,7 +1089,15 @@ document.getElementById('projectSelect').addEventListener('change', (e) => {
         }
         resetFilters();
         loadTasks();
+        return;
     }
+
+    currentProjectId = null;
+    localStorage.removeItem('currentProjectId');
+    document.getElementById('currentProjectName').textContent = 'Sin proyecto';
+    applyProjectBrand(null);
+    resetFilters();
+    loadTasks();
 });
 
 document.getElementById('openProjectPickerBtn').addEventListener('click', () => {
@@ -1049,8 +1175,7 @@ document.getElementById('openCreateBtn').addEventListener('click', async () => {
     document.getElementById('taskModalLabel').textContent = 'Crear tarea';
     document.getElementById('taskSaveBtn').textContent = 'Guardar';
     document.getElementById('taskProjectSelect').value = currentProjectId;
-    const modal = new bootstrap.Modal(document.getElementById('taskModal'));
-    modal.show();
+    safeShowModal('taskModal');
 });
 
 // ==================== GUARDAR TAREA ====================
@@ -1058,25 +1183,18 @@ document.getElementById('openCreateBtn').addEventListener('click', async () => {
 let editId = null;
 
 document.getElementById('taskSaveBtn').addEventListener('click', async () => {
-    const title = document.getElementById('title');
-    if (!title.value.trim()) {
-        showToast('El título es obligatorio', 'warning');
+    // Validar formulario
+    if (window.taskFormValidator && !window.taskFormValidator.validate()) {
+        window.taskFormValidator.focusFirstError();
+        showToast('Por favor completa todos los campos requeridos correctamente', 'warning');
         return;
     }
 
     const projectId = editId
         ? document.getElementById('taskProjectSelect').value
         : currentProjectId;
-    if (!projectId) {
-        showToast('Debes seleccionar un proyecto', 'warning');
-        return;
-    }
     
     const userId = document.getElementById('taskUserSelect').value;
-    if (!userId) {
-        showToast('Debes seleccionar un usuario', 'warning');
-        return;
-    }
 
     const commentInput = document.getElementById('comment').value.trim();
     const payload = {
@@ -1101,13 +1219,15 @@ document.getElementById('taskSaveBtn').addEventListener('click', async () => {
         });
         
         if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.detail || 'Error al guardar tarea');
+            const errorMessage = await readErrorMessage(res, 'Error al guardar tarea');
+            throw new Error(errorMessage);
         }
         
+        // Response body must be read before closing modal
+        const savedTask = await res.json();
+        
         showToast(editId ? 'Tarea actualizada' : 'Tarea creada', 'success');
-        const modal = bootstrap.Modal.getInstance(document.getElementById('taskModal'));
-        modal.hide();
+        safeHideModal('taskModal');
         resetTaskForm();
         loadTasks();
     } catch (e) {
@@ -1134,14 +1254,13 @@ async function editTask(id) {
         document.getElementById('taskProjectSelect').value = t.project_id || '';
         document.getElementById('taskUserSelect').value = t.user_id || '';
         document.getElementById('comment').value = t.comentario || '';
-        
+         
         editId = id;
         setProjectSelectMode('edit');
         document.getElementById('taskModalLabel').textContent = 'Editar tarea';
         document.getElementById('taskSaveBtn').textContent = 'Actualizar';
         
-        const modal = new bootstrap.Modal(document.getElementById('taskModal'));
-        modal.show();
+        safeShowModal('taskModal');
     } catch (e) {
         showToast('Error al cargar tarea', 'danger');
     }
@@ -1204,11 +1323,10 @@ async function openDetail(id) {
                     <small class="text-muted">ID:</small><br><span class="text-monospace">#${t.id}</span>
                 </div>
             </div>
-        `;
+         `;
         
         document.getElementById('taskDetailLabel').textContent = t.titulo;
-        const modal = new bootstrap.Modal(document.getElementById('taskDetailModal'));
-        modal.show();
+        safeShowModal('taskDetailModal');
     } catch (e) {
         showToast('Error al cargar tarea', 'danger');
     }
@@ -1217,14 +1335,12 @@ async function openDetail(id) {
 document.getElementById('detailEditBtn').addEventListener('click', async () => {
     if (!currentDetailId) return;
     await editTask(currentDetailId);
-    const detailModal = bootstrap.Modal.getInstance(document.getElementById('taskDetailModal'));
-    if (detailModal) detailModal.hide();
+    safeHideModal('taskDetailModal');
 });
 
 document.getElementById('detailDeleteBtn').addEventListener('click', async () => {
     if (!currentDetailId) return;
-    const detailModal = bootstrap.Modal.getInstance(document.getElementById('taskDetailModal'));
-    if (detailModal) detailModal.hide();
+    safeHideModal('taskDetailModal');
     await delTask(currentDetailId);
 });
 
@@ -1235,6 +1351,139 @@ function resetTaskForm() {
     document.getElementById('prio').value = '1';
     document.getElementById('comment').value = '';
     editId = null;
+    // Limpiar errores de validación
+    if (window.taskFormValidator) {
+        window.taskFormValidator.clearErrors();
+    }
+}
+
+// ==================== FORM VALIDATORS ====================
+
+let taskFormValidator = null;
+let projectFormValidator = null;
+let userFormValidator = null;
+
+function initializeFormValidators() {
+    // Task Form Validator
+    if (document.getElementById('taskForm')) {
+        taskFormValidator = new FormValidator('taskForm', {
+            title: { 
+                required: true, 
+                minLength: 3, 
+                maxLength: 200 
+            },
+            taskProjectSelect: { 
+                required: true 
+            },
+            taskUserSelect: { 
+                required: true 
+            },
+            desc: { 
+                maxLength: 255 
+            },
+            prio: { 
+                custom: (value) => {
+                    const num = parseInt(value);
+                    if (isNaN(num) || num < 1 || num > 5) {
+                        return 'Prioridad debe ser entre 1 y 5';
+                    }
+                    return null;
+                }
+            },
+            comment: { 
+                maxLength: 1000 
+            }
+        });
+        
+        // Vigila campos en tiempo real
+        taskFormValidator.watchAllFields('blur');
+        window.taskFormValidator = taskFormValidator;
+    }
+
+    // User Form Validator
+    if (document.getElementById('userForm')) {
+        userFormValidator = new FormValidator('userForm', {
+            userId: { 
+                required: true, 
+                minLength: 3, 
+                maxLength: 255 
+            },
+            userName: { 
+                required: true, 
+                minLength: 3, 
+                maxLength: 255 
+            },
+            userLastName: { 
+                required: true,
+                maxLength: 255 
+            },
+            userSecondLastName: { 
+                maxLength: 255 
+            },
+            userAge: { 
+                custom: (value) => {
+                    if (value && (isNaN(value) || value < 1 || value > 120)) {
+                        return 'Edad debe ser entre 1 y 120';
+                    }
+                    return null;
+                }
+            }
+        });
+        
+        userFormValidator.watchAllFields('blur');
+        window.userFormValidator = userFormValidator;
+    }
+}
+                    return null;
+                }
+            },
+            comment: { 
+                maxLength: 1000 
+            }
+        });
+        
+        // Vigila campos en tiempo real
+        taskFormValidator.watchAllFields('blur');
+        window.taskFormValidator = taskFormValidator;
+    }
+
+    // Project Form Validator
+    if (document.getElementById('projectModal')) {
+        projectFormValidator = new FormValidator('projectForm', {
+            projectName: { 
+                required: true, 
+                minLength: 3, 
+                maxLength: 200 
+            },
+            projectDesc: { 
+                maxLength: 1000 
+            }
+        });
+        
+        projectFormValidator.watchAllFields('blur');
+        window.projectFormValidator = projectFormValidator;
+    }
+
+    // User Form Validator
+    if (document.getElementById('userModal')) {
+        userFormValidator = new FormValidator('userForm', {
+            userName: { 
+                required: true, 
+                minLength: 3, 
+                maxLength: 255 
+            },
+            userEmail: { 
+                pattern: 'email',
+                patternMessage: 'Email inválido'
+            },
+            userLastName: { 
+                maxLength: 255 
+            }
+        });
+        
+        userFormValidator.watchAllFields('blur');
+        window.userFormValidator = userFormValidator;
+    }
 }
 
 // ==================== TOAST NOTIFICATIONS ====================
@@ -1291,24 +1540,21 @@ document.getElementById('projectFormBtn').addEventListener('click', async () => 
         });
 
         if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.detail || 'Error al guardar proyecto');
+            const errorMessage = await readErrorMessage(res, 'Error al guardar proyecto');
+            throw new Error(errorMessage);
         }
 
-        const savedProject = await res.json();
+        // Response body must be read before closing modal
+         const savedProject = await res.json();
 
         showToast(projectEditId ? 'Proyecto actualizado' : 'Proyecto creado', 'success');
-        const modal = bootstrap.Modal.getInstance(document.getElementById('projectModal'));
-        modal.hide();
+        safeHideModal('projectModal');
 
         await loadProjects();
 
         if (!projectEditId) {
-            const selectionModal = bootstrap.Modal.getInstance(document.getElementById('projectSelectionModal'));
-            if (selectionModal) {
-                setActiveProject(savedProject);
-                selectionModal.hide();
-            }
+            setActiveProject(savedProject);
+            safeHideModal('projectSelectionModal');
         } else if (currentProjectId && parseInt(currentProjectId) === savedProject.id) {
             setActiveProject(savedProject);
         }
@@ -1341,8 +1587,7 @@ document.getElementById('editProjectBtn').addEventListener('click', () => {
 
 document.getElementById('openUserModalBtn').addEventListener('click', () => {
     document.getElementById('userForm').reset();
-    const modal = new bootstrap.Modal(document.getElementById('userModal'));
-    modal.show();
+    safeShowModal('userModal');
 });
 
 document.getElementById('userSaveBtn').addEventListener('click', async () => {
@@ -1381,20 +1626,15 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
         });
 
         if (!res.ok) {
-            let errorMessage = 'Error al crear usuario';
-            try {
-                const error = await res.json();
-                errorMessage = error.detail || errorMessage;
-            } catch (parseError) {
-                const text = await res.text();
-                if (text) errorMessage = text;
-            }
+            const errorMessage = await readErrorMessage(res, 'Error al crear usuario');
             throw new Error(errorMessage);
         }
 
+         // Response body must be read before closing modal
+        const savedUser = await res.json();
+
         showToast('Usuario creado', 'success');
-        const modal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
-        modal.hide();
+        safeHideModal('userModal');
         await loadUsers();
     } catch (e) {
         console.error('Error creando usuario:', e);
@@ -1465,8 +1705,7 @@ function openProjectModal(mode, project = null) {
         logoPreview.classList.add('d-none');
     }
 
-    const modal = new bootstrap.Modal(document.getElementById('projectModal'));
-    modal.show();
+    safeShowModal('projectModal');
 }
 
 function updateProjectLogoPreview(dataUrl) {
@@ -1479,6 +1718,20 @@ function updateProjectLogoPreview(dataUrl) {
     preview.classList.remove('d-none');
     preview.innerHTML = `<img src="${dataUrl}" alt="Logo del proyecto">`;
 }
+
+// ==================== MODAL CLEANUP HANDLERS ====================
+
+// Limpiar backdrops huérfanos cuando los modales se cierren
+['userSelectionModal', 'projectSelectionModal', 'taskModal', 'taskDetailModal', 'userModal', 'projectModal'].forEach(modalId => {
+    const modalEl = document.getElementById(modalId);
+    if (modalEl) {
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            setTimeout(() => {
+                cleanupOrphanBackdrops();
+            }, 50);
+        });
+    }
+});
 
 // ==================== INICIALIZAR APP ====================
 

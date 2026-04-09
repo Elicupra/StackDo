@@ -3,3 +3,4 @@
 api/__pycache__
 *.env
 /node_modules
+/local_test_data.md

@@ -7,7 +7,9 @@
     <link rel="icon" type="image/png" href="../assets/stackdo-logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- Design Tokens (Sistema de diseño centralizado) -->
+    <link rel="stylesheet" href="../css/design-tokens.css" />
     <link rel="stylesheet" href="admin.css" />
 </head>
 <body>
@@ -90,6 +92,11 @@
         </main>
     </div>
 
-    <script src="admin.js"></script>
+    <!-- Core Modules (Arquitectura refactorizada) -->
+    <script src="../js/core/stateManager.js" defer></script>
+    <script src="../js/core/modalManager.js" defer></script>
+    <script src="../js/core/formValidator.js" defer></script>
+    
+    <script src="admin.js" defer></script>
 </body>
 </html>

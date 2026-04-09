@@ -1,6 +1,7 @@
 import os
 import hashlib
 import secrets
+import time
 from datetime import datetime, timedelta
 from typing import Optional, Iterable
 
@@ -59,12 +60,12 @@ def verify_password(password: str, salt_hex: str, expected_hash: str) -> bool:
 
 
 def create_access_token(user: User) -> str:
-    now = datetime.utcnow()
+    now_ts = int(time.time())
     payload = {
         "sub": str(user.id),
         "role": normalize_role(user.rol),
-        "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(minutes=JWT_EXPIRE_MINUTES)).timestamp()),
+        "iat": now_ts,
+        "exp": now_ts + (JWT_EXPIRE_MINUTES * 60),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 

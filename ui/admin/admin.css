@@ -1,13 +1,17 @@
 :root {
     color-scheme: light;
-    --bg: #f6f4ef;
+    --bg: #f3f6fb;
     --panel: #ffffff;
-    --text: #1a1c1f;
-    --muted: #5a616b;
-    --accent: #1d4ed8;
-    --accent-weak: #e0e7ff;
+    --text: #0f172a;
+    --muted: #475569;
+    --accent: #0f766e;
+    --accent-weak: #e7f4f3;
     --danger: #b91c1c;
-    --border: #d7d4ce;
+    --border: #d7e0ec;
+    --radius: 12px;
+    --radius-pill: 999px;
+    --shadow-sm: 0 8px 20px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 14px 34px rgba(15, 23, 42, 0.1);
 }
 
 * {
@@ -16,8 +20,11 @@
 
 body {
     margin: 0;
-    font-family: "IBM Plex Mono", monospace;
-    background: var(--bg);
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+    background:
+        radial-gradient(circle at top right, rgba(15, 118, 110, 0.08), transparent 40%),
+        radial-gradient(circle at bottom left, rgba(3, 105, 161, 0.07), transparent 38%),
+        var(--bg);
     color: var(--text);
 }
 
@@ -32,8 +39,10 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 20px 32px;
-    border-bottom: 2px solid var(--border);
-    background: var(--panel);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    background: linear-gradient(120deg, #0f766e 0%, #0b6b9a 100%);
+    color: #ffffff;
+    box-shadow: 0 8px 26px rgba(15, 23, 42, 0.2);
 }
 
 .brand {
@@ -49,12 +58,13 @@ body {
 
 .title {
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 700;
+    font-family: 'Plus Jakarta Sans', 'Manrope', sans-serif;
 }
 
 .subtitle {
     font-size: 12px;
-    color: var(--muted);
+    color: rgba(255, 255, 255, 0.8);
 }
 
 .topbar-actions {
@@ -64,11 +74,12 @@ body {
 }
 
 .pill {
-    background: var(--accent-weak);
-    color: var(--accent);
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
     padding: 6px 10px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-size: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
 }
 
 main {
@@ -79,9 +90,9 @@ main {
 .panel {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius);
     padding: 24px;
-    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
+    box-shadow: var(--shadow-sm);
 }
 
 .form-grid {
@@ -107,21 +118,35 @@ input {
 }
 
 .btn {
-    border: none;
-    border-radius: 8px;
+    border: 1px solid transparent;
+    border-radius: 10px;
     padding: 10px 16px;
     font-family: inherit;
+    font-weight: 600;
     cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .btn.primary {
-    background: var(--accent);
+    background: linear-gradient(120deg, #0f766e 0%, #0b6b9a 100%);
     color: #fff;
 }
 
+.btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
 .btn.ghost {
-    background: transparent;
+    background: rgba(15, 118, 110, 0.04);
     border: 1px solid var(--border);
+    color: #0f766e;
+}
+
+.btn.ghost:hover {
+    background: #0f766e;
+    border-color: #0f766e;
+    color: #ffffff;
 }
 
 .error {
@@ -141,16 +166,18 @@ input {
 
 .tab {
     border: 1px solid var(--border);
-    background: transparent;
+    background: rgba(15, 118, 110, 0.04);
     padding: 8px 12px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     cursor: pointer;
+    color: #0f766e;
+    font-weight: 600;
 }
 
 .tab.active {
-    background: var(--accent);
+    background: linear-gradient(120deg, #0f766e 0%, #0b6b9a 100%);
     color: #fff;
-    border-color: var(--accent);
+    border-color: transparent;
 }
 
 .tab-content {
@@ -181,12 +208,26 @@ input {
     padding: 10px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    font-size: 12px;
+    font-size: 13px;
+    background: #ffffff;
 }
 
 .table-row.header {
-    background: var(--accent-weak);
+    background: #edf6f5;
     font-weight: 600;
+}
+
+input,
+select {
+    border-radius: 10px;
+}
+
+input:focus,
+select:focus,
+.btn:focus,
+.tab:focus {
+    outline: 2px solid rgba(15, 118, 110, 0.35);
+    outline-offset: 2px;
 }
 
 .table-row input,

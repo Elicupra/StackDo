@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>StackDo - Test Suite Pre-Refactorización</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <style>
+        body { padding: 2rem; background: #f3f6fb; }
+        .test-container { max-width: 900px; margin: 0 auto; }
+        .console { 
+            background: #1e1e1e; 
+            color: #d4d4d4; 
+            padding: 1rem; 
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 600px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .console-line { margin: 0.25rem 0; }
+        .console-pass { color: #4ec9b0; }
+        .console-fail { color: #f48771; }
+        .console-skip { color: #9cdcfe; }
+        .console-info { color: #9cdcfe; }
+        .test-results { margin-top: 2rem; }
+        .result-row { padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+        .result-pass { background: #d4edda; border-left: 4px solid #28a745; }
+        .result-fail { background: #f8d7da; border-left: 4px solid #dc3545; }
+        .result-skip { background: #e7e8ea; border-left: 4px solid #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h1 class="card-title mb-1">
+                    <i class="fas fa-flask"></i> StackDo Test Suite
+                </h1>
+                <p class="text-muted">Pre-Refactorización - Validación de Funcionalidad</p>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-terminal"></i> Console Output
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="testConsole" class="console"></div>
+            </div>
+        </div>
+
+        <div id="testResults" class="test-results"></div>
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Instrucciones</h5>
+                <ol>
+                    <li>Los tests se ejecutarán automáticamente al cargar esta página</li>
+                    <li>Todos los tests deben pasar antes de refactorizar</li>
+                    <li>Si algún test falla, revisa la consola para detalles</li>
+                    <li>Una vez que pasen todos, es seguro proceder con refactorización</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cargar StackDo -->
+    <script src="../main.js"></script>
+    
+    <!-- Cargar tests -->
+    <script>
+        // Override console para capturar output
+        const consoleEl = document.getElementById('testConsole');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        function addToConsole(msg, className = '') {
+            const line = document.createElement('div');
+            line.className = 'console-line ' + className;
+            line.textContent = msg;
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+            addToConsole(msg, 'console-info');
+            originalLog(...args);
+        };
+
+        console.error = function(...args) {
+            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+            addToConsole(msg, 'console-fail');
+            originalError(...args);
+        };
+
+        console.warn = function(...args) {
+            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+            addToConsole(msg, 'console-skip');
+            originalWarn(...args);
+        };
+
+        // Hook para resultados
+        const originalTestRun = TestRunner.prototype.run;
+        TestRunner.prototype.run = async function() {
+            await originalTestRun.call(this);
+            
+            // Mostrar resultados en tabla
+            displayResults(this);
+        };
+
+        function displayResults(runner) {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '<h4 class="mb-3">Resultados Detallados</h4>';
+
+            runner.tests.forEach((test, idx) => {
+                const div = document.createElement('div');
+                let className = 'result-row ';
+                let icon = '';
+                let status = '';
+
+                if (test.skip) {
+                    className += 'result-skip';
+                    icon = '<i class="fas fa-forward"></i>';
+                    status = 'SKIP';
+                } else if (runner.failed > 0 && idx >= runner.passed) {
+                    className += 'result-fail';
+                    icon = '<i class="fas fa-times-circle"></i>';
+                    status = 'FAIL';
+                } else {
+                    className += 'result-pass';
+                    icon = '<i class="fas fa-check-circle"></i>';
+                    status = 'PASS';
+                }
+
+                div.className = className;
+                div.innerHTML = `
+                    <div class="d-flex align-items-center gap-2">
+                        ${icon}
+                        <strong>${status}</strong>
+                        <span>${test.description}</span>
+                    </div>
+                `;
+
+                resultsDiv.appendChild(div);
+            });
+        }
+    </script>
+    
+    <!-- Cargar tests pre-refactor -->
+    <script src="./pre-refactor-tests.js"></script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
